@@ -1,0 +1,17 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img">
+    <title>OpenIRis</title>
+    <style>
+        .ring  { stroke: #5c3d8f; }
+        .pupil { fill:   #5c3d8f; }
+        .dot   { fill:   #c9a833; }
+        @media (prefers-color-scheme: dark) {
+            .ring  { stroke: #a07ee0; }
+            .pupil { fill:   #a07ee0; }
+            .dot   { fill:   #e8c14a; }
+        }
+    </style>
+    <!-- Simplified mark for small sizes: ring + pupil + dot only, no ticks -->
+    <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" class="ring"/>
+    <circle cx="50" cy="50" r="20" class="pupil"/>
+    <circle cx="50" cy="50" r="6"  class="dot"/>
+</svg>

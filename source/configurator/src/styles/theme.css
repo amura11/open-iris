@@ -1,0 +1,132 @@
+/*
+ * OpenIRis brand theme
+ *
+ * Surfaces are semi-transparent so the background shows through.
+ * Borders use vivid brand colors for visual definition.
+ * Dark mode is the primary expression of this aesthetic.
+ */
+
+/* ─── Light mode ─────────────────────────────────────────────────────────── */
+
+:root {
+    /* Brand palette */
+    --color-primary:          #5c3d8f;
+    --color-secondary:        #7b52b8;
+    --color-accent:           #c9a833;
+    --color-text-primary:     #2d1a4a;
+    --color-text-secondary:   #9488aa;
+    --color-background:       #f5f2ff;
+    --color-surface:          rgba(255, 255, 255, 0.80);
+    --color-border:           rgba(92, 61, 143, 0.35);
+
+    /* Glass */
+    --surface-glass:          blur(12px);
+
+    /* Typography */
+    --font-sans:  system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-mono:  ui-monospace, 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, 'Courier New', monospace;
+
+    /* ── Shoelace primary color scale (violet, hue ≈ 263°) ─────────────── */
+    --sl-color-primary-50:   #f6f2fd;
+    --sl-color-primary-100:  #ece4fb;
+    --sl-color-primary-200:  #d6c7f5;
+    --sl-color-primary-300:  #b99eea;
+    --sl-color-primary-400:  #9473d8;
+    --sl-color-primary-500:  #7b52b8;   /* brand secondary */
+    --sl-color-primary-600:  #5c3d8f;   /* brand primary  */
+    --sl-color-primary-700:  #4a3072;
+    --sl-color-primary-800:  #382356;
+    --sl-color-primary-900:  #2d1a4a;   /* brand text-primary */
+    --sl-color-primary-950:  #1c1030;
+
+    /* ── Shoelace neutral scale (violet-tinted greys) ───────────────────── */
+    --sl-color-neutral-0:    #ffffff;
+    --sl-color-neutral-50:   #f5f2ff;   /* brand background */
+    --sl-color-neutral-100:  #ede8f5;
+    --sl-color-neutral-200:  #d8d0e8;
+    --sl-color-neutral-300:  #bcb2cc;
+    --sl-color-neutral-400:  #9d93aa;
+    --sl-color-neutral-500:  #7d7288;
+    --sl-color-neutral-600:  #5e5468;
+    --sl-color-neutral-700:  #453c50;
+    --sl-color-neutral-800:  #312838;
+    --sl-color-neutral-900:  #231b2e;
+    --sl-color-neutral-950:  #1a1520;
+    --sl-color-neutral-1000: #000000;
+
+    /* ── Shoelace typography ─────────────────────────────────────────────── */
+    --sl-font-sans:  var(--font-sans);
+    --sl-font-mono:  var(--font-mono);
+
+    /* ── Shoelace focus ring ─────────────────────────────────────────────── */
+    --sl-focus-ring-color:  rgba(92, 61, 143, 0.4);
+    --sl-focus-ring-width:  3px;
+
+    /* ── Shoelace border radius ──────────────────────────────────────────── */
+    --sl-border-radius-small:   3px;
+    --sl-border-radius-medium:  5px;
+    --sl-border-radius-large:   8px;
+    --sl-border-radius-x-large: 12px;
+
+    /* ── Shoelace panel / input surface tokens ───────────────────────────── */
+    --sl-panel-background-color:     var(--color-surface);
+    --sl-panel-border-color:         var(--color-border);
+    --sl-input-background-color:     var(--color-surface);
+    --sl-input-border-color:         var(--color-border);
+    --sl-input-border-color-hover:   var(--color-primary);
+    --sl-input-border-color-focus:   var(--color-primary);
+    --sl-overlay-background-color:   rgba(20, 10, 35, 0.65);
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Brand palette */
+        --color-primary:          #a07ee0;
+        --color-secondary:        #c4a8f0;
+        --color-accent:           #e8c14a;
+        --color-text-primary:     #ede8ff;
+        --color-text-secondary:   #8070b0;
+        --color-background:       #0b0814;
+        --color-surface:          rgba(28, 16, 48, 0.55);
+        --color-border:           rgba(160, 126, 224, 0.60);
+
+        /* Glass */
+        --surface-glass:          blur(16px);
+
+        /* ── Shoelace primary scale — lighter for dark backgrounds ──────── */
+        --sl-color-primary-50:   #1c1030;
+        --sl-color-primary-100:  #2d1a4a;
+        --sl-color-primary-200:  #432866;
+        --sl-color-primary-300:  #613e8c;
+        --sl-color-primary-400:  #7d57ae;
+        --sl-color-primary-500:  #9873c8;
+        --sl-color-primary-600:  #a07ee0;   /* dark brand primary */
+        --sl-color-primary-700:  #b799ea;
+        --sl-color-primary-800:  #c4a8f0;   /* dark brand secondary */
+        --sl-color-primary-900:  #dccef8;
+        --sl-color-primary-950:  #f0eaff;
+
+        /* ── Shoelace neutral scale ──────────────────────────────────────── */
+        --sl-color-neutral-0:    #000000;
+        --sl-color-neutral-50:   #0b0814;   /* brand background dark */
+        --sl-color-neutral-100:  #140d20;
+        --sl-color-neutral-200:  #1e1530;
+        --sl-color-neutral-300:  #2d1a4a;
+        --sl-color-neutral-400:  #453c58;
+        --sl-color-neutral-500:  #635878;
+        --sl-color-neutral-600:  #8070a0;
+        --sl-color-neutral-700:  #a090c0;
+        --sl-color-neutral-800:  #c4b8e0;
+        --sl-color-neutral-900:  #ddd8f5;
+        --sl-color-neutral-950:  #f0eaff;
+        --sl-color-neutral-1000: #ffffff;
+
+        /* ── Shoelace focus ring ─────────────────────────────────────────── */
+        --sl-focus-ring-color:  rgba(160, 126, 224, 0.55);
+
+        /* ── Shoelace overlay ────────────────────────────────────────────── */
+        --sl-overlay-background-color: rgba(4, 0, 12, 0.75);
+    }
+}

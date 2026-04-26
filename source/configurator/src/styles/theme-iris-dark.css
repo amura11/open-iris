@@ -1,0 +1,151 @@
+/*
+ * OpenIRis — Iris Dark theme for Shoelace
+ *
+ * Loaded on top of Shoelace's dark.css base. Applies to html.sl-theme-dark,
+ * which gives it higher specificity than :root rules and wins in the cascade.
+ *
+ * Aesthetic: solid dark panels, tight borders, OpenIRis violet/gold palette.
+ * Modelled after the dense dark-panel configurator style.
+ */
+
+/* ─── Brand tokens ───────────────────────────────────────────────────────── */
+
+.sl-theme-dark {
+    /* Brand palette */
+    --color-primary:          #a07ee0;
+    --color-secondary:        #c4a8f0;
+    --color-accent:           #e8c14a;
+    --color-text-primary:     #ede8ff;
+    --color-text-secondary:   #7060a0;
+    --color-background:       #0b0814;
+    --color-surface:          #140d20;
+    --color-surface-raised:   #1e1530;
+    --color-border:           rgba(160, 126, 224, 0.20);
+
+    /* Solid panels — no blur so the dark background reads clearly */
+    --surface-glass:          none;
+
+    /* Typography */
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, 'Courier New', monospace;
+
+    /* ── Shoelace primary color scale (violet, hue ≈ 265°) ─────────────── */
+    --sl-color-primary-50:   #1c1030;
+    --sl-color-primary-100:  #2d1a4a;
+    --sl-color-primary-200:  #432866;
+    --sl-color-primary-300:  #613e8c;
+    --sl-color-primary-400:  #7d57ae;
+    --sl-color-primary-500:  #9873c8;
+    --sl-color-primary-600:  #a07ee0;   /* brand primary */
+    --sl-color-primary-700:  #b799ea;
+    --sl-color-primary-800:  #c4a8f0;   /* brand secondary */
+    --sl-color-primary-900:  #dccef8;
+    --sl-color-primary-950:  #f0eaff;
+
+    /* ── Shoelace neutral scale (violet-tinted darks) ────────────────────── */
+    --sl-color-neutral-0:    #000000;
+    --sl-color-neutral-50:   #0b0814;   /* brand background */
+    --sl-color-neutral-100:  #120b1c;
+    --sl-color-neutral-200:  #1e1530;   /* raised surface */
+    --sl-color-neutral-300:  #2d1a4a;
+    --sl-color-neutral-400:  #453c58;
+    --sl-color-neutral-500:  #635878;
+    --sl-color-neutral-600:  #8070a0;
+    --sl-color-neutral-700:  #a090c0;
+    --sl-color-neutral-800:  #c4b8e0;
+    --sl-color-neutral-900:  #ddd8f5;
+    --sl-color-neutral-950:  #f0eaff;
+    --sl-color-neutral-1000: #ffffff;
+
+    /* ── Shoelace typography ─────────────────────────────────────────────── */
+    --sl-font-sans: var(--font-sans);
+    --sl-font-mono: var(--font-mono);
+
+    /* ── Shoelace focus ring ─────────────────────────────────────────────── */
+    --sl-focus-ring-color: rgba(160, 126, 224, 0.55);
+    --sl-focus-ring-width: 3px;
+
+    /* ── Shoelace border radius ──────────────────────────────────────────── */
+    --sl-border-radius-small:   3px;
+    --sl-border-radius-medium:  5px;
+    --sl-border-radius-large:   8px;
+    --sl-border-radius-x-large: 12px;
+
+    /* ── Shoelace panel (solid dark surface, defined border) ─────────────── */
+    --sl-panel-background-color: var(--color-surface);
+    --sl-panel-border-color:     var(--color-border);
+    --sl-panel-border-width:     1px;
+
+    /* ── Shoelace inputs ─────────────────────────────────────────────────── */
+    --sl-input-background-color:          var(--color-surface);
+    --sl-input-background-color-hover:    var(--color-surface-raised);
+    --sl-input-background-color-focus:    var(--color-surface-raised);
+    --sl-input-background-color-disabled: var(--sl-color-neutral-100);
+    --sl-input-border-color:              var(--color-border);
+    --sl-input-border-color-hover:        var(--color-primary);
+    --sl-input-border-color-focus:        var(--color-primary);
+    --sl-input-border-color-disabled:     rgba(160, 126, 224, 0.08);
+    --sl-input-color:                     var(--color-text-primary);
+    --sl-input-color-hover:               var(--color-text-primary);
+    --sl-input-color-focus:               var(--color-text-primary);
+    --sl-input-color-disabled:            var(--color-text-secondary);
+    --sl-input-placeholder-color:         var(--color-text-secondary);
+    --sl-input-placeholder-color-disabled: var(--sl-color-neutral-500);
+    --sl-input-focus-ring-color:          rgba(160, 126, 224, 0.40);
+    --sl-input-icon-color:                var(--color-text-secondary);
+    --sl-input-icon-color-hover:          var(--color-primary);
+    --sl-input-icon-color-focus:          var(--color-primary);
+    --sl-input-label-color:               var(--color-text-primary);
+    --sl-input-help-text-color:           var(--color-text-secondary);
+
+    /* ── Shoelace overlay ────────────────────────────────────────────────── */
+    --sl-overlay-background-color: rgba(4, 0, 12, 0.78);
+
+    /* ── Shoelace shadows (deeper on dark backgrounds) ───────────────────── */
+    --sl-shadow-x-small: 0 1px 2px  rgb(0 0 0 / 48%);
+    --sl-shadow-small:   0 1px 2px  rgb(0 0 0 / 56%);
+    --sl-shadow-medium:  0 2px 4px  rgb(0 0 0 / 56%);
+    --sl-shadow-large:   0 2px 8px  rgb(0 0 0 / 56%);
+    --sl-shadow-x-large: 0 4px 16px rgb(0 0 0 / 56%);
+}
+
+/* ─── Shoelace component surface overrides ───────────────────────────────── */
+/*
+ * Shoelace components render via shadow DOM, so their part() surfaces need
+ * direct overrides here rather than relying on inherited custom properties.
+ */
+
+/* Cards: solid dark background with a violet-tinted border */
+sl-card::part(base) {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    backdrop-filter: none;
+}
+
+/* Dialogs and drawers: slightly raised surface to float above background */
+sl-dialog::part(panel),
+sl-drawer::part(panel) {
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-border);
+    backdrop-filter: none;
+}
+
+/* Dropdown panels: same raised surface */
+sl-dropdown::part(panel) {
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-border);
+    backdrop-filter: none;
+}
+
+/* Select / combobox popup */
+sl-select::part(listbox) {
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-border);
+}
+
+/* Tooltip */
+sl-tooltip::part(base__popup) {
+    --sl-tooltip-background-color: var(--color-surface-raised);
+    --sl-tooltip-color:            var(--color-text-primary);
+    --sl-tooltip-border:           1px solid var(--color-border);
+}

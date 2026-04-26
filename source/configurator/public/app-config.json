@@ -1,0 +1,10 @@
+{
+  "defaultLayout": "default",
+  "layouts": [
+    {
+      "id": "default",
+      "name": "Default Remote",
+      "path": "/layouts/default.json"
+    }
+  ]
+}

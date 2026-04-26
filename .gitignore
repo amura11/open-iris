@@ -1,0 +1,13 @@
+temp/
+
+# Configurator
+source/configurator/node_modules/
+source/configurator/dist/
+source/configurator/.svelte-kit/
+
+# Firmware
+source/firmware/build/
+source/firmware/sdkconfig
+source/firmware/sdkconfig.old
+source/firmware/managed_components/
+source/firmware/**/.cache/

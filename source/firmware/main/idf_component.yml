@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+dependencies:
+  lvgl/lvgl:
+    version: ">=8.0.0,<9.0.0"
+  espressif/esp_lcd_ili9341:
+    version: "*"
+  idf: ">=5.0.0"

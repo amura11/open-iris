@@ -1,0 +1,69 @@
+{
+    "name": "OpenIRis",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+
+    // Mount the workspace into the container at the standard devcontainer location.
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+    // Pass through all USB devices so that flashing and monitoring work.
+    // On Linux the host user should be in the 'dialout' (or 'plugdev') group.
+    // On Windows/macOS with Docker Desktop, USB passthrough is handled by the VM;
+    // usbipd-win is the recommended approach on Windows.
+    "runArgs": ["--privileged", "--device=/dev/bus/usb"],
+
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "lts"
+        }
+    },
+
+    // Keep the IDF_PATH that the base image sets, and add the IDF tools to PATH
+    // so idf.py is available in every terminal without any manual sourcing.
+    "remoteEnv": {
+        "IDF_PATH": "/opt/esp/idf",
+        "PATH": "/opt/esp/idf/tools:${containerEnv:PATH}"
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "espressif.esp-idf-extension",
+                "svelte.svelte-vscode",
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cmake-tools",
+                "esbenp.prettier-vscode",
+                "Anthropic.claude-code"
+            ],
+            "settings": {
+                // Point the IDF extension at the copy of IDF that ships in the image
+                // so it does not try to download its own.
+                "idf.espIdfPath": "/opt/esp/idf",
+                "idf.customExtraPaths": "/opt/esp/idf/tools",
+                "idf.toolsPath": "/opt/esp/tools",
+                "idf.gitPath": "/usr/bin/git",
+
+                // Use the Python that the base image provides for the IDF virtualenv.
+                "idf.pythonBinPath": "/opt/esp/idf/tools/idf-python-env/bin/python",
+
+                // Use the IDF CMake integration rather than the generic one.
+                "cmake.configureOnOpen": false,
+
+                "C_Cpp.intelliSenseEngine": "default",
+                "C_Cpp.default.compileCommands": "${workspaceFolder}/source/firmware/build/compile_commands.json"
+            }
+        }
+    },
+
+    "forwardPorts": [5173],
+
+    // Install npm dependencies and wire up the dev utility scripts into ~/.bashrc.
+    "postCreateCommand": "bash .devcontainer/postCreate.sh",
+
+    // Source the IDF environment on every container start so all terminals are
+    // immediately usable without any manual steps.
+    "postStartCommand": ". /opt/esp/idf/export.sh"
+}

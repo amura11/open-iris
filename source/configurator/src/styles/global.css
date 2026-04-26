@@ -1,0 +1,78 @@
+/*
+ * Global base styles for the OpenIRis configurator.
+ * Uses brand CSS custom properties defined in theme.css.
+ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0 0 0.5em;
+    line-height: 1.2;
+    color: var(--color-text-primary);
+}
+
+p {
+    margin: 0 0 1em;
+}
+
+code, pre, kbd {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* ── Scrollbar (Chromium) ────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--sl-border-radius-small);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+}
+
+/* ── Shoelace glass surfaces ─────────────────────────────────────────────── */
+
+sl-card::part(base),
+sl-dialog::part(panel),
+sl-drawer::part(panel),
+sl-dropdown::part(panel) {
+    backdrop-filter: var(--surface-glass);
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Default Remote",
+  "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 420\" width=\"200\" height=\"420\">\n  <!-- Remote body -->\n  <rect x=\"10\" y=\"10\" width=\"180\" height=\"400\" rx=\"20\" ry=\"20\"\n        fill=\"#2a2a2a\" stroke=\"#444\" stroke-width=\"2\"/>\n\n  <!-- Screen region — id must match layout.json -->\n  <rect id=\"screen\" x=\"25\" y=\"25\" width=\"150\" height=\"120\" rx=\"4\" ry=\"4\"\n        fill=\"#111\" stroke=\"#555\" stroke-width=\"1.5\" style=\"cursor:pointer\"/>\n  <text x=\"100\" y=\"91\" text-anchor=\"middle\" fill=\"#555\" font-size=\"11\" font-family=\"sans-serif\">screen</text>\n\n  <!-- Volume Up button — id must match layout.json -->\n  <circle id=\"btn-vol-up\" cx=\"100\" cy=\"200\" r=\"24\"\n          fill=\"#3a3a3a\" stroke=\"#666\" stroke-width=\"1.5\" style=\"cursor:pointer\"/>\n  <text x=\"100\" y=\"196\" text-anchor=\"middle\" fill=\"#ccc\" font-size=\"18\" font-family=\"sans-serif\">+</text>\n  <text x=\"100\" y=\"210\" text-anchor=\"middle\" fill=\"#888\" font-size=\"8\" font-family=\"sans-serif\">VOL</text>\n\n  <!-- Volume Down button — id must match layout.json -->\n  <circle id=\"btn-vol-down\" cx=\"100\" cy=\"270\" r=\"24\"\n          fill=\"#3a3a3a\" stroke=\"#666\" stroke-width=\"1.5\" style=\"cursor:pointer\"/>\n  <text x=\"100\" y=\"275\" text-anchor=\"middle\" fill=\"#ccc\" font-size=\"18\" font-family=\"sans-serif\">−</text>\n  <text x=\"100\" y=\"285\" text-anchor=\"middle\" fill=\"#888\" font-size=\"8\" font-family=\"sans-serif\">VOL</text>\n\n  <!-- Mute button — id must match layout.json -->\n  <rect id=\"btn-mute\" x=\"72\" y=\"330\" width=\"56\" height=\"32\" rx=\"6\" ry=\"6\"\n        fill=\"#3a3a3a\" stroke=\"#666\" stroke-width=\"1.5\" style=\"cursor:pointer\"/>\n  <text x=\"100\" y=\"351\" text-anchor=\"middle\" fill=\"#ccc\" font-size=\"10\" font-family=\"sans-serif\">MUTE</text>\n</svg>",
+  "screen": {
+    "svgElementId": "screen",
+    "widthPx": 320,
+    "heightPx": 240,
+    "colorDisplay": true
+  },
+  "buttons": [
+    {
+      "svgElementId": "btn-vol-up",
+      "buttonCode": "VOL_UP",
+      "friendlyName": "Volume Up"
+    },
+    {
+      "svgElementId": "btn-vol-down",
+      "buttonCode": "VOL_DOWN",
+      "friendlyName": "Volume Down"
+    },
+    {
+      "svgElementId": "btn-mute",
+      "buttonCode": "MUTE",
+      "friendlyName": "Mute"
+    }
+  ]
+}
