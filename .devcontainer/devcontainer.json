@@ -8,6 +8,11 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
     "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
+    // Mount host git config so identity, aliases, and settings carry over automatically.
+    "mounts": [
+        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached"
+    ],
+
     // Pass through all USB devices so that flashing and monitoring work.
     // On Linux the host user should be in the 'dialout' (or 'plugdev') group.
     // On Windows/macOS with Docker Desktop, USB passthrough is handled by the VM;
