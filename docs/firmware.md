@@ -1,6 +1,6 @@
 # Firmware
 
-The firmware is an ESP-IDF application for the ESP32 that reads `remote.bin` from an SD card and renders the root Context's items on an ILI9341 display using LVGL.
+The firmware is an ESP-IDF application for the ESP32 that reads `remote.bin` from an SD card and renders the root State's items on an ILI9341 display using LVGL.
 
 ## Status
 
@@ -40,32 +40,39 @@ source/firmware/
     ui/
       include/
         ui.h
-      ui.c               LVGL widget construction from context_t data
+      ui.c               LVGL widget construction from state_t data
   main/
-    main.c               Wiring only: mounts FATFS, calls config_load, display_init, ui_render_context
+    main.c               Wiring only: mounts FATFS, calls config_load, display_init, ui_render_state
 ```
 
 ### `config`
 
-Two-pass binary loader. Pass 1 reads the manifest header to compute sizes and pre-allocate contiguous blocks per type. Pass 2 fills them in. Stable numeric IDs in the file are resolved to raw pointers at load time and never used again at runtime. All string memory is owned by `string_blob` in `config_t`; pointers in `item_t` and `context_t` point into it.
+Two-pass binary loader. Pass 1 reads the manifest header to compute sizes and pre-allocate contiguous blocks per type. Pass 2 fills them in. Stable numeric IDs in the file are resolved to raw pointers at load time and never used again at runtime. All string memory is owned by `string_blob` in `config_t`; pointers in `item_t` and `state_t` point into it.
 
 ```c
 // config.h
+typedef enum {
+    STATE_TYPE_ROOT       = 0x00,
+    STATE_TYPE_PERSISTENT = 0x01,
+    STATE_TYPE_EPHEMERAL  = 0x02,
+} state_type_t;
+
 typedef struct { uint16_t id; const char *label; } item_t;
 
 typedef struct {
     uint16_t id;
-    bool can_activate;
+    state_type_t type;
+    bool button_fallback;
     const char *name;
     uint16_t item_count;
     item_t *items;
-    // Activity-only: on_activate / on_deactivate command sequences — stubbed
-} context_t;
+    // Persistent only: on_activate / on_deactivate command sequences — stubbed
+} state_t;
 
 typedef struct {
-    context_t *contexts;
-    uint16_t context_count;
-    uint16_t root_context_id;
+    state_t *states;
+    uint16_t state_count;
+    uint16_t root_state_id;
     char *string_blob;     // owns all string memory
     uint8_t *raw_buffer;   // owns the entire loaded file buffer
 } config_t;
@@ -80,17 +87,17 @@ Initializes LVGL and wires up the ILI9341 via `esp_lcd`. Owns the flush callback
 
 ### `ui`
 
-Takes a `context_t *` and constructs LVGL widgets. First milestone: renders items as `lv_label` widgets in a vertical column. Knows nothing about the binary format — only about the in-memory `context_t` type. Contexts with `can_activate = true` will eventually show an active/inactive highlight; stubbed for now.
+Takes a `state_t *` and constructs LVGL widgets. First milestone: renders items as `lv_label` widgets in a vertical column. Knows nothing about the binary format — only about the in-memory `state_t` type.
 
 ### `main`
 
-Pure wiring: mounts FATFS at `/sdcard`, calls `config_load("/sdcard/remote.bin", &cfg)`, calls `display_init()`, calls `ui_render_context(&cfg.contexts[0])`. No logic lives here.
+Pure wiring: mounts FATFS at `/sdcard`, calls `config_load("/sdcard/remote.bin", &cfg)`, calls `display_init()`, calls `ui_render_state(&cfg.states[cfg.root_state_id])`. No logic lives here.
 
 ## Deferred
 
 - Button input handling (ISRs, debouncing, button-to-action mapping)
-- Context activation logic (one-at-a-time active constraint)
-- Navigation between Contexts
+- State activation logic (one-at-a-time Persistent state constraint)
+- Navigation stack runtime implementation
 - Command sequences (IR codes, macros)
 - `on_activate` / `on_deactivate` execution
 - LVGL themes beyond default

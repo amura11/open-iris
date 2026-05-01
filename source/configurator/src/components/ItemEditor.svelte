@@ -1,6 +1,6 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import type { Item } from '@model/context.ts';
+    import type { Item } from '@model/state.ts';
 
     interface Props {
         item: Item;

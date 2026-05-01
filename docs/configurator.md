@@ -8,7 +8,8 @@ The configurator is a Svelte 5 web application that lets users build a remote co
 |---|---|
 | Layout loading (TOML + embedded SVG) | Built |
 | SVG remote preview with click interactions | Built |
-| Context/Item editing via InspectorPanel | Built |
+| State/Item editing via InspectorPanel | Built |
+| State selector (switch between states) | Built |
 | Export `remote.bin` | Built |
 | Import `remote.bin` | Built |
 | Button action assignment | Deferred |
@@ -26,21 +27,21 @@ The configurator is a Svelte 5 web application that lets users build a remote co
 
 ```
 source/configurator/src/
-  App.svelte                Root component — owns layout, config, selection, and panel state
+  App.svelte                Root component — owns layout, config, selectedStateId, selection, and panel state
   main.ts                   Entry point — loads Shoelace, sets base path, mounts app
   app-config.ts             AppConfig + LayoutRef types; loadAppConfig() fetches /app-config.json
   components/               (@components alias)
     RemotePreview.svelte    Inlines SVG; wires screen + button click handlers; applies CSS state classes
     InspectorPanel.svelte   Collapsible right panel; renders ScreenInspector or ButtonInspector
-    ScreenInspector.svelte  Context type badge + ItemList for the selected screen
+    ScreenInspector.svelte  State type badge + buttonFallback toggle + ItemList for the selected state
     ButtonInspector.svelte  Shows button code; action assignment placeholder
-    ItemList.svelte         CRUD list of Items within a Context
+    ItemList.svelte         CRUD list of Items within a State
     ItemEditor.svelte       Single-item inline editor (label input + save/cancel)
   layout/                   (@layout alias)
     layout-types.ts         ScreenDescriptor, ButtonDescriptor, RemoteLayout interfaces
     layout-loader.ts        loadLayout(path) — fetches .toml, parses with smol-toml → RemoteLayout
   model/                    (@model alias)
-    context.ts              Item, Context, RemoteConfig types
+    state.ts                Item, State, StateType, RemoteConfig types
     button-codes.ts         ButtonCode enum — manually synced with firmware button_codes.h
     selection.ts            Selection union type
   serialization/            (@serialization alias)
@@ -93,7 +94,11 @@ The `svgElementId` values in `[screen]` and `[[buttons]]` must match `id` attrib
 
 ## UI Architecture
 
-The app uses a two-panel layout:
+The app uses a state selector bar + two-panel layout.
+
+### State Selector Bar
+
+A centered `sl-select` dropdown between the header and the canvas split. Populated from `remoteConfig.states`. Changing the selection updates `selectedStateId` in `App.svelte`, which drives `selectedState` (a `$derived`) that flows into `InspectorPanel` as the `activeState` prop. On import, `selectedStateId` resets to the new config's `rootStateId`.
 
 ### RemotePreview (left)
 
@@ -101,7 +106,7 @@ Fills available canvas space. Inlines the SVG so elements are real DOM nodes. On
 
 ### InspectorPanel (right)
 
-Collapsible right panel; width is resizable by dragging the separator. Shows `ScreenInspector` when the screen is selected, `ButtonInspector` when a button is selected, or a placeholder when nothing is selected. Fires `onContextUpdate` upward when items are edited. Title updates reactively based on the current selection.
+Collapsible right panel; width is resizable by dragging the separator. Receives `activeState` as a prop (already resolved by `App.svelte` from `selectedStateId`). Shows `ScreenInspector` when the screen is selected, `ButtonInspector` when a button is selected, or a placeholder when nothing is selected. Fires `onStateUpdate` upward when items are edited. Title updates reactively based on the current selection.
 
 ### Selection Model
 
@@ -117,9 +122,9 @@ export type Selection =
 
 ## Serialization
 
-**Export (`writer.ts`):** `serialize(config)` builds the binary in a single pass — string blob first, then item records, then context records (variable length due to inline item ID lists), then the manifest with computed absolute offsets, then the header. `downloadBin(config)` calls `serialize` and triggers a browser download.
+**Export (`writer.ts`):** `serialize(config)` builds the binary in a single pass — string blob first, then item records, then state records (variable length due to inline item ID lists), then the manifest with computed absolute offsets, then the header. `downloadBin(config)` calls `serialize` and triggers a browser download.
 
-**Import (`reader.ts`):** `deserialize(bytes)` reads the manifest to locate each block, parses Context and Item records, resolves string offsets into JS strings, and returns a `RemoteConfig`. Import errors are shown as a dismissable toast in the UI.
+**Import (`reader.ts`):** `deserialize(bytes)` validates magic + version (rejects v0x01), reads the manifest to locate each block, parses State and Item records, resolves string offsets into JS strings, and returns a `RemoteConfig`. Import errors are shown as a dismissable toast in the UI.
 
 ## Deferred
 

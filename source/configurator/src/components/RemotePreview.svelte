@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { RemoteConfig } from '@model/context.ts';
+    import type { RemoteConfig } from '@model/state.ts';
     import type { Selection } from '@model/selection.ts';
 
     interface Props {

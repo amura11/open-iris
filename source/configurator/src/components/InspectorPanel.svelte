@@ -2,38 +2,32 @@
     import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { Context, RemoteConfig } from '@model/context.ts';
+    import type { State } from '@model/state.ts';
     import ScreenInspector from '@components/ScreenInspector.svelte';
     import ButtonInspector from '@components/ButtonInspector.svelte';
 
     interface Props {
         selection: Selection;
         layout: RemoteLayout;
-        config: RemoteConfig;
+        activeState: State;
         width: number;
         collapsed: boolean;
-        onContextUpdate?: (updated: Context) => void;
+        onStateUpdate?: (updated: State) => void;
         onToggleCollapse?: () => void;
         onClearSelection?: () => void;
     }
 
-    let { selection, layout, config, width, collapsed, onContextUpdate, onToggleCollapse, onClearSelection }: Props = $props();
+    let { selection, layout, activeState, width, collapsed, onStateUpdate, onToggleCollapse, onClearSelection }: Props = $props();
 
     let panelTitle = $derived.by(() => {
         const sel = selection;
         if (!sel) return 'Properties';
-        if (sel.type === 'screen') {
-            return config.contexts.find(c => c.id === config.rootContextId)?.name ?? 'Screen';
-        }
+        if (sel.type === 'screen') return activeState.name;
         if (sel.type === 'button') {
             return layout.buttons.find(b => b.buttonCode === sel.buttonCode)?.friendlyName ?? sel.buttonCode;
         }
         return 'Properties';
     });
-
-    let activeContext = $derived(
-        config.contexts.find(c => c.id === config.rootContextId) ?? config.contexts[0]
-    );
 
     let activeButton = $derived.by(() => {
         const sel = selection;
@@ -82,7 +76,7 @@
 
         <div class="panel-body">
             {#if selection?.type === 'screen'}
-                <ScreenInspector context={activeContext} onUpdate={onContextUpdate} />
+                <ScreenInspector state={activeState} onUpdate={onStateUpdate} />
             {:else if selection?.type === 'button' && activeButton}
                 <ButtonInspector button={activeButton} />
             {:else}

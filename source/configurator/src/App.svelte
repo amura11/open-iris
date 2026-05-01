@@ -4,10 +4,12 @@
     import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
     import '@shoelace-style/shoelace/dist/components/button/button.js';
     import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
+    import '@shoelace-style/shoelace/dist/components/select/select.js';
+    import '@shoelace-style/shoelace/dist/components/option/option.js';
     import { loadAppConfig } from './app-config.ts';
     import { loadLayout } from '@layout/layout-loader.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { Context, RemoteConfig } from '@model/context.ts';
+    import type { State, RemoteConfig } from '@model/state.ts';
     import type { Selection } from '@model/selection.ts';
     import { downloadBin } from '@serialization/writer.ts';
     import { deserialize } from '@serialization/reader.ts';
@@ -16,18 +18,25 @@
 
     let layout = $state<RemoteLayout | null>(null);
     let remoteConfig = $state<RemoteConfig>({
-        rootContextId: 1,
-        contexts: [{
+        rootStateId: 1,
+        states: [{
             id: 1,
             name: 'Root',
-            canActivate: false,
+            stateType: 'root',
             items: [],
-            onActivateCommands: [],
-            onDeactivateCommands: [],
+            buttonConfigs: [],
+            onActivate: [],
+            onDeactivate: [],
+            buttonFallback: false,
         }],
     });
     let loadError   = $state<string | null>(null);
     let importError = $state<string | null>(null);
+
+    let selectedStateId = $state(1); // mirrors initial remoteConfig.rootStateId
+    let selectedState   = $derived(
+        remoteConfig.states.find(s => s.id === selectedStateId) ?? remoteConfig.states[0]
+    );
 
     let selection      = $state<Selection>(null);
     let panelWidth     = $state(300);
@@ -66,11 +75,15 @@
 
     function handleButtonClick(buttonCode: string) { selection = { type: 'button', buttonCode }; }
 
-    function handleContextUpdate(updated: Context) {
+    function handleStateUpdate(updated: State) {
         remoteConfig = {
             ...remoteConfig,
-            contexts: remoteConfig.contexts.map(c => c.id === updated.id ? updated : c),
+            states: remoteConfig.states.map(s => s.id === updated.id ? updated : s),
         };
+    }
+
+    function handleStateChange(e: Event) {
+        selectedStateId = Number((e.target as HTMLSelectElement).value);
     }
 
     function handleExport() { downloadBin(remoteConfig); }
@@ -83,8 +96,9 @@
             const file = input.files?.[0];
             if (!file) return;
             try {
-                remoteConfig = deserialize(new Uint8Array(await file.arrayBuffer()));
-                importError  = null;
+                remoteConfig    = deserialize(new Uint8Array(await file.arrayBuffer()));
+                selectedStateId = remoteConfig.rootStateId;
+                importError     = null;
             } catch (e) {
                 importError = `Import failed: ${e}`;
             }
@@ -134,6 +148,21 @@
         </div>
     </header>
 
+    {#if layout}
+        <div class="state-bar border-bottom">
+            <sl-select
+                class="state-select"
+                value={String(selectedStateId)}
+                size="small"
+                onsl-change={handleStateChange}
+            >
+                {#each remoteConfig.states as s (s.id)}
+                    <sl-option value={String(s.id)}>{s.name}</sl-option>
+                {/each}
+            </sl-select>
+        </div>
+    {/if}
+
     <!--
         main must be a flex child that can shrink: min-height:0 prevents it
         from expanding to fit its content and breaking the layout.
@@ -169,10 +198,10 @@
             <InspectorPanel
                 {selection}
                 {layout}
-                config={remoteConfig}
+                activeState={selectedState}
                 width={panelWidth}
                 collapsed={panelCollapsed}
-                onContextUpdate={handleContextUpdate}
+                onStateUpdate={handleStateUpdate}
                 onToggleCollapse={togglePanel}
                 onClearSelection={() => { selection = null; }}
             />
@@ -204,6 +233,21 @@
     .canvas-area {
         min-height: 0;
         overflow: hidden;
+    }
+
+    /* ── State selector bar ──────────────────────────────────────────────── */
+
+    .state-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: var(--sl-spacing-x-small) var(--sl-spacing-medium);
+        background: var(--color-surface);
+        flex-shrink: 0;
+    }
+
+    .state-select {
+        width: 16rem;
     }
 
     /* ── Panel resize handle ─────────────────────────────────────────────── */

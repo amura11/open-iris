@@ -16,29 +16,33 @@ The `remote.bin` file is the contract between the configurator (writer) and the 
 
 ## TypeScript Types
 
-Defined in `source/configurator/src/model/context.ts`.
+Defined in `source/configurator/src/model/state.ts`.
 
 ```typescript
+export type StateId   = number;
 export type ItemId    = number;
-export type ContextId = number;
+
+export type StateType = 'root' | 'persistent' | 'ephemeral';
 
 export interface Item {
     id: ItemId;
     label: string;
 }
 
-export interface Context {
-    id: ContextId;
+export interface State {
+    id: StateId;
     name: string;
-    canActivate: boolean;
+    stateType: StateType;
     items: Item[];
-    onActivateCommands: [];    // Stubbed — will hold command sequences
-    onDeactivateCommands: [];
+    buttonConfigs: [];        // Stubbed — will hold per-button action assignments
+    onActivate: [];           // Stubbed — Persistent only; ignored on Root/Ephemeral
+    onDeactivate: [];         // Stubbed — Persistent only; ignored on Root/Ephemeral
+    buttonFallback: boolean;  // Ephemeral only; ignored on Root/Persistent
 }
 
 export interface RemoteConfig {
-    rootContextId: ContextId;
-    contexts: Context[];
+    rootStateId: StateId;
+    states: State[];
 }
 ```
 
@@ -47,21 +51,28 @@ export interface RemoteConfig {
 Defined in `source/firmware/components/config/include/config.h`.
 
 ```c
+typedef enum {
+    STATE_TYPE_ROOT       = 0x00,
+    STATE_TYPE_PERSISTENT = 0x01,
+    STATE_TYPE_EPHEMERAL  = 0x02,
+} state_type_t;
+
 typedef struct { uint16_t id; const char *label; } item_t;
 
 typedef struct {
     uint16_t id;
-    bool can_activate;
+    state_type_t type;
+    bool button_fallback;
     const char *name;
     uint16_t item_count;
     item_t *items;
-    // Activity-only: on_activate / on_deactivate — stubbed
-} context_t;
+    // Persistent only: on_activate / on_deactivate command sequences — stubbed
+} state_t;
 
 typedef struct {
-    context_t *contexts;
-    uint16_t context_count;
-    uint16_t root_context_id;
+    state_t *states;
+    uint16_t state_count;
+    uint16_t root_state_id;
     char *string_blob;     // owns all string memory
     uint8_t *raw_buffer;   // owns the entire loaded file buffer
 } config_t;
@@ -76,22 +87,23 @@ The configurator is the canonical writer. The firmware is a pure reader.
 ```
 [Header]          7 bytes
   magic            4 bytes   "IRIS" (0x49 0x52 0x49 0x53)
-  version          1 byte    0x01
-  root_context_id  2 bytes   little-endian uint16
+  version          1 byte    0x02
+  root_state_id    2 bytes   little-endian uint16
 
 [Manifest]        variable
   entry_count      2 bytes   (always 3 for current version)
   Per entry (11 bytes each):
-    type_tag       1 byte    0x01 = contexts | 0x02 = items | 0x03 = string blob
+    type_tag       1 byte    0x01 = states | 0x02 = items | 0x03 = string blob
     count          2 bytes   record count; byte length for the string blob entry
     data_offset    4 bytes   absolute byte offset to the data block
     id_list_offset 4 bytes   absolute offset to ID array (0 if not applicable)
 
 [Data Blocks]     at offsets declared in manifest
 
-  Context record (variable length):
+  State record (variable length):
     id             2 bytes
-    can_activate   1 byte    0 = false, 1 = true
+    state_type     1 byte    0x00 = root | 0x01 = persistent | 0x02 = ephemeral
+    button_fallback 1 byte   0x00 = false | 0x01 = true
     name_offset    4 bytes   byte offset into string blob
     item_count     2 bytes
     item_ids       item_count × 2 bytes
@@ -106,7 +118,7 @@ The configurator is the canonical writer. The firmware is a pure reader.
     Identical strings are deduplicated (same offset reused)
 ```
 
-All multi-byte integers are little-endian.
+All multi-byte integers are little-endian. Version `0x01` files are rejected by the reader.
 
 ## Button Codes
 
@@ -121,5 +133,5 @@ String values are used (not numeric) on the TypeScript side so that layout `.tom
 
 ## Deferred
 
-- Command sequences on Context (`on_activate` / `on_deactivate` — IR codes, macros)
+- Command sequences on State (`onActivate` / `onDeactivate` — IR codes, macros)
 - Button code enum consolidation (C and TS enums are currently kept in sync manually)

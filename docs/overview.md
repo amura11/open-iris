@@ -8,7 +8,7 @@ OpenIRis is an open-source universal remote control built on the ESP32, configur
 |---|---|
 | Dev container | Built |
 | Configurator: layout loading + SVG preview | Built |
-| Configurator: Context/Item editing | Built |
+| Configurator: State/Item editing | Built |
 | Configurator: export `remote.bin` | Built |
 | Configurator: import `remote.bin` | Built |
 | Configurator: button action assignment | Deferred |
@@ -20,9 +20,9 @@ OpenIRis is an open-source universal remote control built on the ESP32, configur
 
 | Term | Definition |
 |---|---|
-| **Context** | The core UI building block. Everything displayable is a Context. |
-| **Item** | A single entry within a Context — currently just a display string. Later: navigation targets, command triggers. |
-| **`can_activate`** | Boolean on Context. `false` = pure menu (no active/inactive state). `true` = Activity — only one active at a time, with entry/exit command sequences. |
+| **State** | The core UI building block. Every screen the remote can show is a State. |
+| **State Type** | One of three values: **Root** (home screen, always present), **Persistent** (a durable activity — only one active at a time), or **Ephemeral** (a transient overlay that does not change the active state). |
+| **Item** | A single entry within a State — currently just a display string. Later: navigation targets, command triggers. |
 | **Remote Layout** | A `.toml` file pairing an embedded SVG skin with descriptors for the remote's screen and buttons. Independent of the logical config. |
 | **Button Code** | A named string constant (e.g. `VOL_UP`) identifying a physical button. Defined in both the firmware (`button_codes.h`) and the configurator (`button-codes.ts`), kept in sync manually. |
 | **`remote.bin`** | The binary config file written by the configurator and read by the firmware. |
@@ -78,10 +78,10 @@ app-config.json
 
 - Button action assignment (dialog shows button code; assignment not yet implemented)
 - Button input handling in firmware (ISRs, debouncing, button-to-action mapping)
-- Context activation logic (one-at-a-time constraint)
-- Navigation between Contexts
+- State activation logic (one-at-a-time Persistent state constraint)
+- Navigation stack runtime implementation
 - Command sequences (IR codes, macros)
-- `on_activate` / `on_deactivate` execution
+- `onActivate` / `onDeactivate` execution
 - Layout switcher UI (app-config.json supports multiple layouts; picker not built)
 - LVGL themes beyond default
 - Serving the configurator from the device itself

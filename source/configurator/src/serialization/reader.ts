@@ -1,10 +1,16 @@
-import type { RemoteConfig, Context, Item } from '@model/context.ts';
+import type { RemoteConfig, State, Item, StateType } from '@model/state.ts';
 
 const MAGIC = [0x49, 0x52, 0x49, 0x53] as const; // "IRIS"
-const VERSION = 0x01;
-const TYPE_CONTEXTS    = 0x01;
+const VERSION = 0x02;
+const TYPE_STATES      = 0x01;
 const TYPE_ITEMS       = 0x02;
 const TYPE_STRING_BLOB = 0x03;
+
+const STATE_TYPE_MAP: Record<number, StateType> = {
+    0x00: 'root',
+    0x01: 'persistent',
+    0x02: 'ephemeral',
+};
 
 export function deserialize(bytes: Uint8Array): RemoteConfig {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -17,12 +23,12 @@ export function deserialize(bytes: Uint8Array): RemoteConfig {
         throw new Error(`Unsupported version: 0x${bytes[4].toString(16).padStart(2, '0')}`);
     }
 
-    const rootContextId = view.getUint16(5, true);
-    const entryCount    = view.getUint16(7, true);
+    const rootStateId = view.getUint16(5, true);
+    const entryCount  = view.getUint16(7, true);
 
     // Parse manifest entries
-    let contextsBlock:   { count: number; offset: number } | null = null;
-    let itemsBlock:      { count: number; offset: number } | null = null;
+    let statesBlock:    { count: number; offset: number } | null = null;
+    let itemsBlock:     { count: number; offset: number } | null = null;
     let stringBlobBlock: { byteLength: number; offset: number } | null = null;
 
     let pos = 9; // offset after header(7) + entry_count(2)
@@ -33,9 +39,9 @@ export function deserialize(bytes: Uint8Array): RemoteConfig {
         // id_list_offset at pos+7 — not needed for reading
         pos += 11;
 
-        if      (typeTag === TYPE_CONTEXTS)    contextsBlock   = { count,              offset: dataOffset };
-        else if (typeTag === TYPE_ITEMS)       itemsBlock      = { count,              offset: dataOffset };
-        else if (typeTag === TYPE_STRING_BLOB) stringBlobBlock = { byteLength: count,  offset: dataOffset };
+        if      (typeTag === TYPE_STATES)      statesBlock     = { count,             offset: dataOffset };
+        else if (typeTag === TYPE_ITEMS)       itemsBlock      = { count,             offset: dataOffset };
+        else if (typeTag === TYPE_STRING_BLOB) stringBlobBlock = { byteLength: count, offset: dataOffset };
     }
 
     if (!stringBlobBlock) throw new Error('Corrupt file: missing string blob block in manifest');
@@ -61,36 +67,44 @@ export function deserialize(bytes: Uint8Array): RemoteConfig {
         }
     }
 
-    // — Parse context records (variable length) —
-    // id(2) + can_activate(1) + name_offset(4) + item_count(2) + item_ids(item_count × 2)
-    const contexts: Context[] = [];
-    if (contextsBlock) {
-        let p = contextsBlock.offset;
-        for (let i = 0; i < contextsBlock.count; i++) {
-            const id          = view.getUint16(p,     true);
-            const canActivate = bytes[p + 2] !== 0;
-            const nameOffset  = view.getUint32(p + 3, true);
-            const itemCount   = view.getUint16(p + 7, true);
+    // — Parse state records (variable length) —
+    // id(2) + state_type(1) + button_fallback(1) + name_offset(4) + item_count(2) + item_ids(item_count × 2)
+    const states: State[] = [];
+    if (statesBlock) {
+        let p = statesBlock.offset;
+        for (let i = 0; i < statesBlock.count; i++) {
+            const id             = view.getUint16(p,     true);
+            const stateTypeByte  = bytes[p + 2];
+            const buttonFallback = bytes[p + 3] !== 0;
+            const nameOffset     = view.getUint32(p + 4, true);
+            const itemCount      = view.getUint16(p + 8, true);
+
+            const stateType = STATE_TYPE_MAP[stateTypeByte];
+            if (stateType === undefined) {
+                throw new Error(`Unknown state_type byte: 0x${stateTypeByte.toString(16)}`);
+            }
 
             const items: Item[] = [];
             for (let j = 0; j < itemCount; j++) {
-                const itemId = view.getUint16(p + 9 + j * 2, true);
+                const itemId = view.getUint16(p + 10 + j * 2, true);
                 const item   = itemsById.get(itemId);
                 if (item) items.push(item);
             }
 
-            contexts.push({
+            states.push({
                 id,
                 name: getString(nameOffset),
-                canActivate,
+                stateType,
+                buttonFallback,
                 items,
-                onActivateCommands:   [],
-                onDeactivateCommands: [],
+                buttonConfigs: [],
+                onActivate:    [],
+                onDeactivate:  [],
             });
 
-            p += 9 + itemCount * 2;
+            p += 10 + itemCount * 2;
         }
     }
 
-    return { rootContextId, contexts };
+    return { rootStateId, states };
 }
