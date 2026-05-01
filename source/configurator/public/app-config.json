@@ -4,7 +4,7 @@
     {
       "id": "default",
       "name": "Default Remote",
-      "path": "/layouts/default.json"
+      "path": "/layouts/default.toml"
     }
   ]
 }

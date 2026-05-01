@@ -23,7 +23,9 @@ function layoutsPlugin() {
                 if (!existsSync(filePath)) {
                     return next();
                 }
-                const mime = extname(filePath) === '.json' ? 'application/json' : 'application/octet-stream';
+                const mime = extname(filePath) === '.json' ? 'application/json'
+                    : extname(filePath) === '.toml' ? 'text/plain; charset=utf-8'
+                    : 'application/octet-stream';
                 res.setHeader('Content-Type', mime);
                 res.end(readFileSync(filePath));
             });

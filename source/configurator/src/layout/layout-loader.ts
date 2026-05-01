@@ -1,22 +1,24 @@
+import { parse } from 'smol-toml';
 import type { RemoteLayout } from './layout-types.ts';
 
-interface LayoutJson {
+interface LayoutDescriptor {
     name: string;
     svg: string;
     screen: RemoteLayout['screen'];
     buttons: RemoteLayout['buttons'];
 }
 
-export async function loadLayout(layoutJsonPath: string): Promise<RemoteLayout> {
-    const response = await fetch(layoutJsonPath);
+export async function loadLayout(layoutTomlPath: string): Promise<RemoteLayout> {
+    const response = await fetch(layoutTomlPath);
     if (!response.ok) {
-        throw new Error(`Failed to load layout: ${layoutJsonPath} (${response.status})`);
+        throw new Error(`Failed to load layout: ${layoutTomlPath} (${response.status})`);
     }
-    const json: LayoutJson = await response.json();
+    const text = await response.text();
+    const descriptor = parse(text) as unknown as LayoutDescriptor;
     return {
-        name: json.name,
-        svgContent: json.svg,
-        screen: json.screen,
-        buttons: json.buttons,
+        name: descriptor.name,
+        svgContent: descriptor.svg,
+        screen: descriptor.screen,
+        buttons: descriptor.buttons,
     };
 }

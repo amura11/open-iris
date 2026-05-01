@@ -29,25 +29,28 @@ layouts/
 
 ### Layout file format
 
-Each hardware variant is a single `<id>.json` file directly in `layouts/`. The SVG is embedded as the `svg` field — there is no separate `.svg` file.
+Each hardware variant is a single `<id>.toml` file directly in `layouts/`. The SVG is embedded as the `svg` field (a TOML multiline string) — there is no separate `.svg` file. Parsed by `smol-toml` in `layout-loader.ts`.
 
-```json
-{
-  "name": "Human-readable name",
-  "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>...</svg>",
-  "screen": {
-    "svgElementId": "screen",
-    "widthPx": 320,
-    "heightPx": 240,
-    "colorDisplay": true
-  },
-  "buttons": [
-    { "svgElementId": "btn-vol-up", "buttonCode": "VOL_UP", "friendlyName": "Volume Up" }
-  ]
-}
+```toml
+name = "Human-readable name"
+
+svg = """
+<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>
+"""
+
+[screen]
+svgElementId = "screen"
+widthPx      = 320
+heightPx     = 240
+colorDisplay = true
+
+[[buttons]]
+svgElementId = "btn-vol-up"
+buttonCode   = "VOL_UP"
+friendlyName = "Volume Up"
 ```
 
-SVG element IDs in `screen.svgElementId` and `buttons[].svgElementId` must match actual `id` attributes in the embedded SVG. `app-config.json` references layouts by path (e.g. `/layouts/default.json`). The Vite dev server serves `layouts/` under `/layouts/`; on build it is copied to `dist/layouts/` via the `layoutsPlugin` in `vite.config.ts`.
+SVG element IDs in `screen.svgElementId` and `buttons[].svgElementId` must match actual `id` attributes in the embedded SVG. `app-config.json` references layouts by path (e.g. `/layouts/default.toml`). The Vite dev server serves `layouts/` under `/layouts/` (with `text/plain; charset=utf-8` for `.toml` files); on build it is copied to `dist/layouts/` via the `layoutsPlugin` in `vite.config.ts`.
 
 ### Import aliases
 

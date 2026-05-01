@@ -2,14 +2,29 @@
 
 OpenIRis is an open-source universal remote control built on the ESP32 microcontroller. It is a self-contained, offline alternative to the Logitech Harmony line. Configuration is done through a browser-based UI; all data lives on the device in an open binary format.
 
+For terminology, architecture, data flow, and format specifications see [specs.md](specs.md).
+
 ## Repository layout
 
 ```
 source/
   firmware/        ESP-IDF C firmware for the ESP32 (see source/firmware/agents.md)
   configurator/    Browser-based config UI — Svelte 5 + TypeScript (see source/configurator/agents.md)
-    layouts/       Layout descriptor files (single JSON per hardware variant, SVG embedded)
+    layouts/       Layout descriptor files (single TOML per hardware variant, SVG embedded)
 ```
+
+## Keeping specs current
+
+The `docs/` folder contains authoritative spec files for this project. After completing any work that changes what is built, update the relevant file(s) before finishing.
+
+| File | Update when you… |
+|---|---|
+| [docs/overview.md](docs/overview.md) | Change the repo structure, terminology, dev container setup, or the end-to-end data flow |
+| [docs/configurator.md](docs/configurator.md) | Add, remove, or rename a component; change the layout format; alter the selection model or serialization |
+| [docs/firmware.md](docs/firmware.md) | Add or restructure a firmware component; change the build setup or target |
+| [docs/config-data-model.md](docs/config-data-model.md) | Change the binary format, add/remove fields on shared types, or update the button code registry |
+
+In every file, keep the **Status** table accurate: move features from `Planned` → `Built` when they land, and remove items from `## Deferred` when they are implemented.
 
 ## General coding standards
 

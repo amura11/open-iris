@@ -69,6 +69,36 @@ _firmware_set_target() {
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py set-target "$target")
 }
 
+_firmware_pick_port() {
+    local candidates=(/dev/ttyUSB* /dev/ttyACM*)
+    local available=()
+    for candidate in "${candidates[@]}"; do
+        if [[ -e "$candidate" ]]; then
+            available+=("$candidate")
+        fi
+    done
+
+    if [[ ${#available[@]} -eq 0 ]]; then
+        echo "No serial devices found. Check USB connection and that the device is visible inside the container." >&2
+        return 1
+    fi
+
+    if [[ ${#available[@]} -eq 1 ]]; then
+        export ESPPORT="${available[0]}"
+        echo "→ ESPPORT=${ESPPORT}"
+        return 0
+    fi
+
+    echo "Available serial devices:"
+    select device in "${available[@]}"; do
+        if [[ -n "$device" ]]; then
+            export ESPPORT="$device"
+            echo "→ ESPPORT=${ESPPORT}"
+            break
+        fi
+    done
+}
+
 alias 'firmware:build'='_firmware_build'
 alias 'firmware:clean'='_firmware_clean'
 alias 'firmware:flash'='_firmware_flash'
@@ -77,6 +107,7 @@ alias 'firmware:flash-monitor'='_firmware_flash_monitor'
 alias 'firmware:menuconfig'='_firmware_menuconfig'
 alias 'firmware:size'='_firmware_size'
 alias 'firmware:set-target'='_firmware_set_target'
+alias 'firmware:pick-port'='_firmware_pick_port'
 
 # ── Project-wide ─────────────────────────────────────────────────────────────
 
@@ -98,9 +129,10 @@ OpenIRis dev commands
   web:check            Run svelte-check (TypeScript + Svelte type checking)
   web:format           Run prettier on src/
 
+  firmware:pick-port   List available serial devices and set ESPPORT
   firmware:build       Build firmware  (idf.py build)
   firmware:clean       Delete all build artifacts  (idf.py fullclean)
-  firmware:flash       Flash to device  (pass --port /dev/ttyUSBx if needed)
+  firmware:flash       Flash to device
   firmware:monitor     Open serial monitor
   firmware:flash-monitor  Flash then immediately open serial monitor
   firmware:menuconfig  Open ESP-IDF Kconfig menu
