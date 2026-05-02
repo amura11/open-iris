@@ -17,6 +17,10 @@ source/
 
 The `docs/` folder contains authoritative spec files for this project. After completing any work that changes what is built, update the relevant file(s) before finishing.
 
+### Work items (`docs/work/`)
+
+Specs for planned work live in `docs/work/`. Each file must be prefixed with `IR<N>-` where `N` is the next available integer (e.g. `IR1-refactor-context-to-state.md`, `IR2-button-actions.md`). This acts as a lightweight ticket number — use the prefix when referring to a spec in conversation or commit messages.
+
 | File | Update when you… |
 |---|---|
 | [docs/overview.md](docs/overview.md) | Change the repo structure, terminology, dev container setup, or the end-to-end data flow |
