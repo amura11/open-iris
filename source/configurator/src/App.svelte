@@ -8,6 +8,7 @@
     import '@shoelace-style/shoelace/dist/components/select/select.js';
     import '@shoelace-style/shoelace/dist/components/option/option.js';
     import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
+    import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
     import { loadAppConfig } from './app-config.ts';
     import { loadLayout } from '@layout/layout-loader.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
@@ -45,10 +46,12 @@
     let panelCollapsed = $state(false);
 
     let nameInputFocusTrigger = $state(0);
-    let deleteDialogEl: any    = $state(null);
+    let deleteDialogEl: SlDialog | null = $state(null);
     let pendingDeleteName      = $state('');
 
-    function togglePanel() { panelCollapsed = !panelCollapsed; }
+    function togglePanel() {
+        panelCollapsed = !panelCollapsed;
+    }
 
     function startResize(e: MouseEvent) {
         const startX     = e.clientX;
@@ -71,15 +74,23 @@
     async function initialize() {
         const appConfig = await loadAppConfig();
         const defaultLayout = appConfig.layouts.find(l => l.id === appConfig.defaultLayout);
-        if (!defaultLayout) throw new Error('Default layout not found in app-config.json');
+        if (!defaultLayout) {
+            throw new Error('Default layout not found in app-config.json');
+        }
         layout = await loadLayout(defaultLayout.path);
     }
 
-    initialize().catch(err => { loadError = String(err); });
+    initialize().catch(err => {
+        loadError = String(err);
+    });
 
-    function handleScreenClick() { selection = { type: 'screen' }; }
+    function handleScreenClick() {
+        selection = { type: 'screen' };
+    }
 
-    function handleButtonClick(buttonCode: string) { selection = { type: 'button', buttonCode }; }
+    function handleButtonClick(buttonCode: string) {
+        selection = { type: 'button', buttonCode };
+    }
 
     function handleStateUpdate(updated: State) {
         remoteConfig = {
@@ -125,7 +136,9 @@
         deleteDialogEl?.hide();
     }
 
-    function handleExport() { downloadBin(remoteConfig); }
+    function handleExport() {
+        downloadBin(remoteConfig);
+    }
 
     function handleImport() {
         const input = document.createElement('input');
@@ -133,7 +146,9 @@
         input.accept = '.bin';
         input.onchange = async () => {
             const file = input.files?.[0];
-            if (!file) return;
+            if (!file) {
+                return;
+            }
             try {
                 remoteConfig    = deserialize(new Uint8Array(await file.arrayBuffer()));
                 selectedStateId = remoteConfig.rootStateId;
@@ -258,7 +273,9 @@
                 focusTrigger={nameInputFocusTrigger}
                 onStateUpdate={handleStateUpdate}
                 onToggleCollapse={togglePanel}
-                onClearSelection={() => { selection = null; }}
+                onClearSelection={() => {
+                    selection = null;
+                }}
             />
             {#if importError}
                 <div class="import-toast">

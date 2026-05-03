@@ -23,7 +23,7 @@
         if (focusTrigger > 0) {
             sectionOpen = true;
             const el = untrack(() => nameInputEl);
-            setTimeout(() => (el as any)?.focus(), 0);
+            setTimeout(() => el?.focus(), 0);
         }
     });
 

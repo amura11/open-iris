@@ -39,9 +39,16 @@
     // ── Initial fit ──────────────────────────────────────────────────────────
 
     $effect(() => {
-        if (!viewportEl || !transformEl) return;
+        if (!viewportEl || !transformEl) {
+            return;
+        }
+
         const svg = transformEl.querySelector('svg');
-        if (!svg) return;
+
+        if (!svg) {
+            return;
+        }
+
         applyFit(viewportEl.getBoundingClientRect(), svg.clientWidth, svg.clientHeight, false);
     });
 
@@ -49,30 +56,52 @@
         svgNaturalWidth = svgW;
         const padding = 48;
         const s = Math.min((vr.width - padding * 2) / svgW, (vr.height - padding * 2) / svgH, 3);
-        if (animated) isAnimating = true;
+        
+        if (animated) {
+            isAnimating = true;
+        }
+
         scale = s;
         tx = (vr.width  - svgW * s) / 2;
         ty = (vr.height - svgH * s) / 2;
-        if (animated) setTimeout(() => { isAnimating = false; }, 420);
+        if (animated) {
+            setTimeout(() => {
+                isAnimating = false;
+            }, 420);
+        }
     }
 
     function resetView() {
-        if (!viewportEl || !transformEl) return;
+        if (!viewportEl || !transformEl) {
+            return;
+        }
+
         const svg = transformEl.querySelector('svg');
-        if (!svg) return;
+
+        if (!svg) {
+            return;
+        }
+
         applyFit(viewportEl.getBoundingClientRect(), svg.clientWidth, svg.clientHeight, true);
     }
 
     // ── SVG element click listeners ──────────────────────────────────────────
 
     $effect(() => {
-        if (!transformEl) return;
+        if (!transformEl) {
+            return;
+        }
+
         const cleanup: (() => void)[] = [];
 
         const screenEl = transformEl.querySelector(`#${layout.screen.svgElementId}`);
+
         if (screenEl) {
             const handler = () => {
-                if (dragMoved) return;
+                if (dragMoved) {
+                    return;
+                }
+
                 zoomToElement(screenEl);
                 onScreenClick?.();
             };
@@ -84,7 +113,10 @@
             const el = transformEl.querySelector(`#${btn.svgElementId}`);
             if (el) {
                 const handler = () => {
-                    if (dragMoved) return;
+                    if (dragMoved) {
+                        return;
+                    }
+
                     zoomToElement(el);
                     onButtonClick?.(btn.buttonCode);
                 };
@@ -99,22 +131,35 @@
     // ── Selection highlight ──────────────────────────────────────────────────
 
     $effect(() => {
-        if (!transformEl) return;
+        if (!transformEl) {
+            return;
+        }
+
         transformEl.querySelectorAll('.iris-selected').forEach(el => el.classList.remove('iris-selected'));
+
         const sel = selection;
-        if (!sel) return;
+
+        if (!sel) {
+            return;
+        }
+
         if (sel.type === 'screen') {
             transformEl.querySelector(`#${layout.screen.svgElementId}`)?.classList.add('iris-selected');
         } else if (sel.type === 'button') {
             const btn = layout.buttons.find(b => b.buttonCode === sel.buttonCode);
-            if (btn) transformEl.querySelector(`#${btn.svgElementId}`)?.classList.add('iris-selected');
+
+            if (btn) {
+                transformEl.querySelector(`#${btn.svgElementId}`)?.classList.add('iris-selected');
+            }
         }
     });
 
     // ── Zoom to element (animated) ───────────────────────────────────────────
 
     function zoomToElement(el: Element) {
-        if (!viewportEl) return;
+        if (!viewportEl) {
+            return;
+        }
         const vr = viewportEl.getBoundingClientRect();
         const er = el.getBoundingClientRect();
 
@@ -135,13 +180,18 @@
         tx    = (vr.width - svgNaturalWidth * targetScale) / 2;
         ty    = vr.height / 2 - localY * targetScale;
         scale = targetScale;
-        setTimeout(() => { isAnimating = false; }, 420);
+        setTimeout(() => {
+            isAnimating = false;
+        }, 420);
     }
 
     // ── Wheel zoom (passive:false so we can preventDefault) ─────────────────
 
     $effect(() => {
-        if (!viewportEl) return;
+        if (!viewportEl) {
+            return;
+        }
+
         function onWheel(e: WheelEvent) {
             e.preventDefault();
             isAnimating = false;
@@ -161,7 +211,9 @@
     // ── Pan (document-level so drag keeps working outside the viewport) ──────
 
     function handleMousedown(e: MouseEvent) {
-        if (e.button !== 0) return;
+        if (e.button !== 0) {
+            return;
+        }
         isDragging = true;
         dragMoved  = false;
         lastMx     = e.clientX;
@@ -175,7 +227,9 @@
     function onDocMousemove(e: MouseEvent) {
         const dx = e.clientX - lastMx;
         const dy = e.clientY - lastMy;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved = true;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            dragMoved = true;
+        }
         ty += dy;
         lastMx = e.clientX;
         lastMy = e.clientY;
@@ -188,7 +242,9 @@
         document.removeEventListener('mouseup',   onDocMouseup);
         // rAF: click events fire after mouseup in the same task; this ensures
         // click handlers can still read dragMoved before it resets
-        requestAnimationFrame(() => { dragMoved = false; });
+        requestAnimationFrame(() => {
+            dragMoved = false;
+        });
     }
 
     // Clean up if component is destroyed while dragging

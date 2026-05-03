@@ -25,7 +25,9 @@
 
     let activeButton = $derived.by(() => {
         const sel = selection;
-        if (sel?.type !== 'button') return null;
+        if (sel?.type !== 'button') {
+            return null;
+        }
         return layout.buttons.find(b => b.buttonCode === sel.buttonCode) ?? null;
     });
 </script>

@@ -255,6 +255,9 @@ This also applies to intermediate results, state shapes, and event payloads — 
 ## Code style
 
 - **Braces:** Always use braces for `if`, `else`, `for`, `while`, and `do` blocks, even for single-statement bodies.
+- **Block bodies on their own lines:** The opening `{` goes on the same line as the statement; the body and closing `}` are each on their own line. Never put the body on the same line as the braces (`if (x) { return; }` is wrong; expand it).
+- **Blank lines around blocks:** Put a blank line before and after every `if`/`for`/`while` block (and any other multi-line statement) unless it is the very first or last thing in its enclosing block.
+- **Function bodies:** Named functions always use the multi-line form — opening `{` on the signature line, body indented, closing `}` on its own line. One-liner named functions (`function foo() { bar(); }`) are not allowed.
 - **Line length:** No limit. Do not wrap at 80 or 120 characters.
 - **Indentation:** 4 spaces, no tabs.
 - **Quotes:** Single quotes for string literals in TypeScript; double quotes in Svelte template attributes.

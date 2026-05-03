@@ -42,6 +42,8 @@ These apply to all code in this repository regardless of language.
 ### Control flow
 
 - **Always use braces for `if`, `else`, `for`, `while`, and `do` blocks**, even for single-statement bodies. This applies in both C and TypeScript/Svelte.
+- **Block bodies on their own lines.** The opening `{` goes on the same line as the statement; the body and closing `}` are each on their own line. Never collapse a block onto one line.
+- **Blank lines around blocks.** Put a blank line before and after every block statement unless it is the very first or last thing in its enclosing block.
 
 ```c
 // Wrong
@@ -56,6 +58,7 @@ if (!config) {
 ```ts
 // Wrong
 if (error) throw error;
+if (error) { throw error; }
 
 // Correct
 if (error) {
