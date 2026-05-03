@@ -3,6 +3,7 @@
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
     import type { State } from '@model/state.ts';
+    import StateSettings from '@components/StateSettings.svelte';
     import ScreenInspector from '@components/ScreenInspector.svelte';
     import ButtonInspector from '@components/ButtonInspector.svelte';
 
@@ -12,22 +13,15 @@
         activeState: State;
         width: number;
         collapsed: boolean;
+        focusTrigger?: number;
         onStateUpdate?: (updated: State) => void;
         onToggleCollapse?: () => void;
         onClearSelection?: () => void;
     }
 
-    let { selection, layout, activeState, width, collapsed, onStateUpdate, onToggleCollapse, onClearSelection }: Props = $props();
+    let { selection, layout, activeState, width, collapsed, focusTrigger = 0, onStateUpdate, onToggleCollapse, onClearSelection }: Props = $props();
 
-    let panelTitle = $derived.by(() => {
-        const sel = selection;
-        if (!sel) return 'Properties';
-        if (sel.type === 'screen') return activeState.name;
-        if (sel.type === 'button') {
-            return layout.buttons.find(b => b.buttonCode === sel.buttonCode)?.friendlyName ?? sel.buttonCode;
-        }
-        return 'Properties';
-    });
+    const panelTitle = 'Properties';
 
     let activeButton = $derived.by(() => {
         const sel = selection;
@@ -75,13 +69,25 @@
         </div>
 
         <div class="panel-body">
-            {#if selection?.type === 'screen'}
-                <ScreenInspector state={activeState} onUpdate={onStateUpdate} />
-            {:else if selection?.type === 'button' && activeButton}
-                <ButtonInspector button={activeButton} />
-            {:else}
-                <p class="placeholder">Select a button or the screen to view its properties.</p>
-            {/if}
+            <div class="state-section">
+                <StateSettings
+                    activeState={activeState}
+                    focusTrigger={focusTrigger}
+                    onUpdate={onStateUpdate}
+                />
+            </div>
+
+            <hr class="section-divider" />
+
+            <div class="selection-section">
+                {#if selection?.type === 'screen'}
+                    <ScreenInspector state={activeState} onUpdate={onStateUpdate} />
+                {:else if selection?.type === 'button' && activeButton}
+                    <ButtonInspector button={activeButton} />
+                {:else}
+                    <p class="placeholder">Select a button or the screen to view its properties.</p>
+                {/if}
+            </div>
         </div>
     {/if}
 </aside>
@@ -139,7 +145,25 @@
     .panel-body {
         flex: 1;
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .state-section {
         padding: var(--sl-spacing-medium);
+        flex-shrink: 0;
+    }
+
+    .section-divider {
+        border: none;
+        border-top: 1px solid var(--color-border);
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .selection-section {
+        padding: var(--sl-spacing-medium);
+        flex: 1;
     }
 
     .placeholder {

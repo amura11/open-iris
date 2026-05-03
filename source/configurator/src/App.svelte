@@ -1,11 +1,13 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/card/card.js';
     import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
     import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
     import '@shoelace-style/shoelace/dist/components/button/button.js';
     import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
     import '@shoelace-style/shoelace/dist/components/select/select.js';
     import '@shoelace-style/shoelace/dist/components/option/option.js';
+    import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
     import { loadAppConfig } from './app-config.ts';
     import { loadLayout } from '@layout/layout-loader.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
@@ -41,6 +43,10 @@
     let selection      = $state<Selection>(null);
     let panelWidth     = $state(300);
     let panelCollapsed = $state(false);
+
+    let nameInputFocusTrigger = $state(0);
+    let deleteDialogEl: any    = $state(null);
+    let pendingDeleteName      = $state('');
 
     function togglePanel() { panelCollapsed = !panelCollapsed; }
 
@@ -84,6 +90,39 @@
 
     function handleStateChange(e: Event) {
         selectedStateId = Number((e.target as HTMLSelectElement).value);
+    }
+
+    function handleStateAdd() {
+        const newId: number = Math.max(...remoteConfig.states.map(s => s.id)) + 1;
+        const newState: State = {
+            id: newId,
+            name: 'New State',
+            stateType: 'persistent',
+            items: [],
+            buttonConfigs: [],
+            onActivate: [],
+            onDeactivate: [],
+            buttonFallback: false,
+        };
+        remoteConfig = { ...remoteConfig, states: [...remoteConfig.states, newState] };
+        selectedStateId = newId;
+        selection = null;
+        nameInputFocusTrigger++;
+    }
+
+    function handleStateDelete() {
+        pendingDeleteName = selectedState.name;
+        deleteDialogEl?.show();
+    }
+
+    function confirmStateDelete() {
+        remoteConfig = {
+            ...remoteConfig,
+            states: remoteConfig.states.filter(s => s.id !== selectedStateId),
+        };
+        selectedStateId = remoteConfig.rootStateId;
+        selection = null;
+        deleteDialogEl?.hide();
     }
 
     function handleExport() { downloadBin(remoteConfig); }
@@ -160,6 +199,21 @@
                     <sl-option value={String(s.id)}>{s.name}</sl-option>
                 {/each}
             </sl-select>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <sl-icon-button
+                name="plus-circle"
+                label="Add state"
+                onclick={handleStateAdd}
+            ></sl-icon-button>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <sl-icon-button
+                name="trash"
+                label="Delete state"
+                disabled={selectedState.stateType === 'root'}
+                onclick={handleStateDelete}
+            ></sl-icon-button>
         </div>
     {/if}
 
@@ -201,6 +255,7 @@
                 activeState={selectedState}
                 width={panelWidth}
                 collapsed={panelCollapsed}
+                focusTrigger={nameInputFocusTrigger}
                 onStateUpdate={handleStateUpdate}
                 onToggleCollapse={togglePanel}
                 onClearSelection={() => { selection = null; }}
@@ -224,6 +279,16 @@
         {/if}
     </main>
 
+    <sl-dialog bind:this={deleteDialogEl} label="Delete State?">
+        Delete &ldquo;{pendingDeleteName}&rdquo;? This cannot be undone.
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <sl-button slot="footer" variant="text" onclick={() => deleteDialogEl?.hide()}>Cancel</sl-button>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <sl-button slot="footer" variant="danger" onclick={confirmStateDelete}>Delete</sl-button>
+    </sl-dialog>
+
 </div>
 
 <style>
@@ -241,6 +306,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        gap: var(--sl-spacing-2x-small);
         padding: var(--sl-spacing-x-small) var(--sl-spacing-medium);
         background: var(--color-surface);
         flex-shrink: 0;

@@ -28,8 +28,11 @@
     let lastMx    = 0;
     let lastMy    = 0;
 
-    const MIN_SCALE = 0.1;
-    const MAX_SCALE = 10;
+    // SVG natural width — set once on first fit, used to keep remote horizontally centered
+    let svgNaturalWidth = 0;
+
+    const MIN_SCALE = 0.25;
+    const MAX_SCALE = 5;
 
     let zoomPct = $derived(Math.round(scale * 100));
 
@@ -43,6 +46,7 @@
     });
 
     function applyFit(vr: { width: number; height: number }, svgW: number, svgH: number, animated: boolean) {
+        svgNaturalWidth = svgW;
         const padding = 48;
         const s = Math.min((vr.width - padding * 2) / svgW, (vr.height - padding * 2) / svgH, 3);
         if (animated) isAnimating = true;
@@ -114,12 +118,10 @@
         const vr = viewportEl.getBoundingClientRect();
         const er = el.getBoundingClientRect();
 
-        // Element center in viewport coords
-        const ecx = er.left + er.width  / 2 - vr.left;
-        const ecy = er.top  + er.height / 2 - vr.top;
+        // Element center in viewport coords (vertical only — horizontal stays centered)
+        const ecy = er.top + er.height / 2 - vr.top;
 
         // Same point in local (pre-transform) coords
-        const localX = (ecx - tx) / scale;
         const localY = (ecy - ty) / scale;
 
         // Target: the element fills ~35% of the viewport's shorter dimension
@@ -130,7 +132,7 @@
             : scale;
 
         isAnimating = true;
-        tx    = vr.width  / 2 - localX * targetScale;
+        tx    = (vr.width - svgNaturalWidth * targetScale) / 2;
         ty    = vr.height / 2 - localY * targetScale;
         scale = targetScale;
         setTimeout(() => { isAnimating = false; }, 420);
@@ -145,12 +147,12 @@
             isAnimating = false;
             const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
             const vr = viewportEl!.getBoundingClientRect();
-            const mx = e.clientX - vr.left;
             const my = e.clientY - vr.top;
-            // Zoom around the cursor: the point under the cursor stays fixed
-            tx    = mx - (mx - tx) * factor;
+            const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+            // Horizontal: always keep remote centered; vertical: zoom around cursor
+            tx    = (vr.width - svgNaturalWidth * newScale) / 2;
             ty    = my - (my - ty) * factor;
-            scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+            scale = newScale;
         }
         viewportEl.addEventListener('wheel', onWheel, { passive: false });
         return () => viewportEl!.removeEventListener('wheel', onWheel);
@@ -174,7 +176,6 @@
         const dx = e.clientX - lastMx;
         const dy = e.clientY - lastMy;
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved = true;
-        tx += dx;
         ty += dy;
         lastMx = e.clientX;
         lastMy = e.clientY;
