@@ -1,137 +1,186 @@
 # Config Data Model
 
-The `remote.bin` file is the contract between the configurator (writer) and the firmware (reader). This document covers the shared type definitions, binary format, and button code registry.
+The `remote.bin` file is the contract between the configurator (writer) and the firmware (reader). This document covers the binary format, shared type definitions, and button code registry.
 
 ## Status
 
 | Item | State |
 |---|---|
-| TypeScript model types | Built |
-| Binary writer (`writer.ts`) | Built |
-| Binary reader (`reader.ts`) | Built |
+| TypeScript model types | Updating (IR3) |
+| Binary writer (`writer.ts`) | Updating (IR3) |
+| Binary reader (`reader.ts`) | Updating (IR3) |
 | C types (`config.h`) | Planned |
-| C binary loader (`config.c`) | Planned |
+| C binary loader | Planned |
 | Button codes — TypeScript side | Built |
 | Button codes — C side | Planned |
 
-## TypeScript Types
-
-Defined in `source/configurator/src/model/state.ts`.
-
-```typescript
-export type StateId   = number;
-export type ItemId    = number;
-
-export type StateType = 'root' | 'persistent' | 'ephemeral';
-
-export interface Item {
-    id: ItemId;
-    label: string;
-}
-
-export interface State {
-    id: StateId;
-    name: string;
-    stateType: StateType;
-    items: Item[];
-    buttonConfigs: [];        // Stubbed — will hold per-button action assignments
-    onActivate: [];           // Stubbed — Persistent only; ignored on Root/Ephemeral
-    onDeactivate: [];         // Stubbed — Persistent only; ignored on Root/Ephemeral
-    buttonFallback: boolean;  // Ephemeral only; ignored on Root/Persistent
-}
-
-export interface RemoteConfig {
-    rootStateId: StateId;
-    states: State[];
-}
-```
-
-## C Types
-
-Defined in `source/firmware/components/config/include/config.h`.
-
-```c
-typedef enum {
-    STATE_TYPE_ROOT       = 0x00,
-    STATE_TYPE_PERSISTENT = 0x01,
-    STATE_TYPE_EPHEMERAL  = 0x02,
-} state_type_t;
-
-typedef struct { uint16_t id; const char *label; } item_t;
-
-typedef struct {
-    uint16_t id;
-    state_type_t type;
-    bool button_fallback;
-    const char *name;
-    uint16_t item_count;
-    item_t *items;
-    // Persistent only: on_activate / on_deactivate command sequences — stubbed
-} state_t;
-
-typedef struct {
-    state_t *states;
-    uint16_t state_count;
-    uint16_t root_state_id;
-    char *string_blob;     // owns all string memory
-    uint8_t *raw_buffer;   // owns the entire loaded file buffer
-} config_t;
-```
-
-All string pointers (`name`, `label`) point into `string_blob` and are resolved at load time. Callers never deal with offsets after loading.
+---
 
 ## Binary Format (`remote.bin`)
 
 The configurator is the canonical writer. The firmware is a pure reader.
 
+### Design principles
+
+- All resources are identified by stable numeric IDs.
+- Each section has a **resource index** — a small, always-loaded table mapping each ID to its location and size in the file. Resources are loaded by seeking to the recorded offset.
+- Strings are stored inline in the records that own them as null-terminated UTF-8. There is no separate string section.
+- Sections with unknown type tags must be skipped without error.
+
+### Header (7 bytes)
+
 ```
-[Header]          7 bytes
-  magic            4 bytes   "IRIS" (0x49 0x52 0x49 0x53)
-  version          1 byte    0x02
-  root_state_id    2 bytes   little-endian uint16
-
-[Manifest]        variable
-  entry_count      2 bytes   (always 3 for current version)
-  Per entry (11 bytes each):
-    type_tag       1 byte    0x01 = states | 0x02 = items | 0x03 = string blob
-    count          2 bytes   record count; byte length for the string blob entry
-    data_offset    4 bytes   absolute byte offset to the data block
-    id_list_offset 4 bytes   absolute offset to ID array (0 if not applicable)
-
-[Data Blocks]     at offsets declared in manifest
-
-  State record (variable length):
-    id             2 bytes
-    state_type     1 byte    0x00 = root | 0x01 = persistent | 0x02 = ephemeral
-    button_fallback 1 byte   0x00 = false | 0x01 = true
-    name_offset    4 bytes   byte offset into string blob
-    item_count     2 bytes
-    item_ids       item_count × 2 bytes
-
-  Item record (6 bytes):
-    id             2 bytes
-    label_offset   4 bytes   byte offset into string blob
-
-  String blob:
-    Packed null-terminated UTF-8 strings
-    Offsets are uint32_t — blob is not size-limited
-    Identical strings are deduplicated (same offset reused)
+magic           4 bytes   "IRIS" (0x49 0x52 0x49 0x53)
+version         1 byte    0x03
+root_state_id   2 bytes   little-endian uint16
 ```
 
-All multi-byte integers are little-endian. Version `0x01` files are rejected by the reader.
+The reader must reject files where `version != 0x03`.
+
+### Manifest
+
+```
+section_count   2 bytes
+Per entry (11 bytes):
+  type_tag      1 byte
+  count         2 bytes   resource count; or byte length for un-indexed sections
+  index_offset  4 bytes   absolute file offset to resource index; 0x00000000 if no index
+  data_offset   4 bytes   absolute file offset to data block; 0x00000000 for indexed sections
+```
+
+| type_tag | Section | Index | Notes |
+|---|---|---|---|
+| 0x01 | States | Yes | Variable-length records; screen buttons embedded inline |
+| 0x02 | Sequences | Yes | Variable-length records |
+| 0x03 | Icons | Yes | JIT loaded; record format TBD |
+| 0xFF | Configurator Metadata | No | Firmware must skip entirely without parsing; fixed at 0xFF so future section types remain contiguous |
+
+### Resource index entry (8 bytes)
+
+Used by all indexed sections (States, Sequences, Icons, REST Payloads).
+
+```
+id            2 bytes   little-endian uint16
+data_offset   4 bytes   absolute file offset to this resource's data
+data_length   2 bytes   byte length of this resource's data
+```
+
+The index for a section is a flat array of these entries. To resolve a resource by ID: scan (or binary search if sorted) the index for a matching `id`, then read `data_length` bytes from `data_offset`.
+
+The writer should output IDs in ascending order within each index to enable binary search.
+
+### State record (variable length)
+
+```
+id                        2 bytes
+state_type                1 byte    0x00 = root | 0x01 = persistent | 0x02 = ephemeral
+button_fallback           1 byte    0x00 = false | 0x01 = true
+on_activate_sequence_id   2 bytes   0xFFFF = not configured
+on_deactivate_sequence_id 2 bytes   0xFFFF = not configured
+name                      null-terminated UTF-8
+physical_button_count     1 byte
+Per physical button config (4 bytes, fixed):
+  button_code             1 byte    numeric ButtonCode enum value
+  _reserved               1 byte    must be 0x00
+  sequence_id             2 bytes   little-endian uint16
+screen_button_count       2 bytes
+Per screen button config (variable):
+  label                   null-terminated UTF-8
+  icon_id                 2 bytes   0xFFFF = none
+  sequence_id             2 bytes   little-endian uint16
+```
+
+Fixed-size fields come before all variable-length content. Physical button configs are fixed-size and appear before screen button configs to allow the parser to advance cleanly. Screen buttons are ordered; their position in the record determines display order.
+
+### Sequence record (variable length)
+
+```
+id              2 bytes
+action_count    1 byte    at least 1
+Per action (5 bytes):
+  action_type   1 byte
+  params        4 bytes   layout determined by action_type; unused bytes are 0x00
+```
+
+### Configurator metadata (type_tag 0xFF)
+
+Stores sequence names and any other configurator-only data. The firmware must recognise this tag in the manifest and skip the block without parsing. The block's internal format is owned by the configurator.
+
+```
+name_count          2 bytes
+Per named sequence:
+  sequence_id       2 bytes
+  name              null-terminated UTF-8
+```
+
+---
+
+## TypeScript Types
+
+Defined in:
+
+| File | Contents |
+|---|---|
+| `source/configurator/src/model/state.ts` | `State`, `StateId`, `StateType`, `RemoteConfig` |
+| `source/configurator/src/model/actions.ts` | `Action`, `ActionType`, `Sequence`, `SequenceId`, `PhysicalButtonConfig`, `ScreenButtonConfig`, `ScreenButtonId` |
+| `source/configurator/src/model/button-codes.ts` | `ButtonCode` constants |
+
+---
+
+## C Types
+
+Planned. Defined in `source/firmware/components/config/include/config.h`.
+
+The firmware loading model uses a resource-index-based context rather than a flat struct with raw pointers. See `temp/firmware-config-loading.md` for design notes.
+
+Key types (indicative — not yet implemented):
+
+```c
+#define SEQUENCE_ID_NONE  0xFFFF
+#define ICON_ID_NONE      0xFFFF
+
+typedef uint16_t state_id_t;
+typedef uint16_t sequence_id_t;
+typedef uint16_t icon_id_t;
+typedef uint8_t  action_type_t;   // values TBD; defined in action_types.h
+
+typedef struct {
+    action_type_t type;
+    uint8_t       params[4];
+} action_t;
+
+typedef struct {
+    uint16_t  id;
+    uint32_t  data_offset;
+    uint16_t  data_length;
+} resource_entry_t;
+
+typedef struct {
+    resource_entry_t *entries;
+    uint16_t          count;
+} resource_index_t;
+```
+
+`config_ctx_t` holds one `resource_index_t` per indexed section. Resources are resolved through typed accessor functions that check a cache before loading from the file buffer. See `temp/firmware-config-loading.md`.
+
+---
 
 ## Button Codes
 
-Button codes are named string constants identifying physical buttons (e.g. `VOL_UP`, `VOL_DOWN`, `MUTE`). They are defined in two places, kept in sync manually:
+Button codes are named string constants identifying physical buttons (e.g. `VOL_UP`, `DPAD_CENTER`). Defined in two places, kept in sync manually:
 
 | Side | File | Form |
 |---|---|---|
-| Configurator | `source/configurator/src/model/button-codes.ts` | TypeScript string enum |
-| Firmware | `source/firmware/components/config/include/button_codes.h` | C enum |
+| Configurator | `source/configurator/src/model/button-codes.ts` | TypeScript string constants |
+| Firmware | `source/firmware/components/config/include/button_codes.h` | C enum (planned) |
 
-String values are used (not numeric) on the TypeScript side so that layout `.toml` files can reference button codes by name directly, without a lookup table.
+String values are used on the TypeScript side so layout `.toml` files can reference button codes by name. Numeric enum values are used in the binary format.
+
+---
 
 ## Deferred
 
-- Command sequences on State (`onActivate` / `onDeactivate` — IR codes, macros)
-- Button code enum consolidation (C and TS enums are currently kept in sync manually)
+- Icon record format
+- ActionType enum values and C header (`action_types.h`)
+- Button code enum consolidation (C and TS currently kept in sync manually)
+- `config_ctx_t` implementation and binary loader (`config_load()`)
