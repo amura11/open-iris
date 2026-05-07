@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { State } from '@model/state.ts';
-    import ItemList from '@components/ItemList.svelte';
+    import ScreenButtonList from '@components/ScreenButtonList.svelte';
 
     interface Props {
         state: State;
@@ -10,4 +10,4 @@
     let { state, onUpdate }: Props = $props();
 </script>
 
-<ItemList {state} onUpdate={onUpdate} />
+<ScreenButtonList {state} onUpdate={onUpdate} />

@@ -1,24 +1,24 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import type { Item } from '@model/state.ts';
+    import type { ScreenButtonConfig } from '@model/actions.ts';
 
     interface Props {
-        item: Item;
-        onSave?: (updated: Item) => void;
+        button: ScreenButtonConfig;
+        onSave?: (updated: ScreenButtonConfig) => void;
         onCancel?: () => void;
     }
 
-    let { item, onSave, onCancel }: Props = $props();
+    let { button, onSave, onCancel }: Props = $props();
 
-    // svelte-ignore state_referenced_locally — intentional snapshot; $effect below re-syncs on item change
-    let label = $state(item.label);
+    // svelte-ignore state_referenced_locally — intentional snapshot; $effect below re-syncs on button change
+    let label = $state(button.label);
 
     $effect(() => {
-        label = item.label;
+        label = button.label;
     });
 
     function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter') onSave?.({ ...item, label });
+        if (e.key === 'Enter') onSave?.({ ...button, label });
         if (e.key === 'Escape') onCancel?.();
     }
 </script>
@@ -33,7 +33,7 @@
     />
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button size="small" variant="primary" onclick={() => onSave?.({ ...item, label })}>
+    <sl-button size="small" variant="primary" onclick={() => onSave?.({ ...button, label })}>
         Save
     </sl-button>
     <!-- svelte-ignore a11y_click_events_have_key_events -->

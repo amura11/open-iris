@@ -26,12 +26,13 @@
             id: 1,
             name: 'Root',
             stateType: 'root',
-            items: [],
-            buttonConfigs: [],
-            onActivate: [],
-            onDeactivate: [],
+            screenButtons: [],
+            physicalButtons: [],
+            onActivate: null,
+            onDeactivate: null,
             buttonFallback: false,
         }],
+        sequences: [],
     });
     let loadError   = $state<string | null>(null);
     let importError = $state<string | null>(null);
@@ -109,10 +110,10 @@
             id: newId,
             name: 'New State',
             stateType: 'persistent',
-            items: [],
-            buttonConfigs: [],
-            onActivate: [],
-            onDeactivate: [],
+            screenButtons: [],
+            physicalButtons: [],
+            onActivate: null,
+            onDeactivate: null,
             buttonFallback: false,
         };
         remoteConfig = { ...remoteConfig, states: [...remoteConfig.states, newState] };

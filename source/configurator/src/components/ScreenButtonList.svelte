@@ -2,8 +2,9 @@
     import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
     import '@shoelace-style/shoelace/dist/components/button/button.js';
     import '@shoelace-style/shoelace/dist/components/divider/divider.js';
-    import type { State, Item } from '@model/state.ts';
-    import ItemEditor from '@components/ItemEditor.svelte';
+    import type { State } from '@model/state.ts';
+    import type { ScreenButtonConfig } from '@model/actions.ts';
+    import ScreenButtonEditor from '@components/ScreenButtonEditor.svelte';
 
     interface Props {
         state: State;
@@ -13,57 +14,57 @@
     // Destructured as `stateData` to avoid naming conflict with the $state rune
     let { state: stateData, onUpdate }: Props = $props();
 
-    let editingItemId = $state<number | null>(null);
+    let editingButtonId = $state<number | null>(null);
 
-    let nextItemId = $derived(
-        stateData.items.reduce((max, item) => Math.max(max, item.id), 0) + 1
+    let nextButtonId = $derived(
+        stateData.screenButtons.reduce((max, btn) => Math.max(max, btn.id), 0) + 1
     );
 
-    function addItem() {
-        const newItem: Item = { id: nextItemId, label: 'New Item' };
-        onUpdate?.({ ...stateData, items: [...stateData.items, newItem] });
-        editingItemId = newItem.id;
+    function addButton() {
+        const newButton: ScreenButtonConfig = { id: nextButtonId, label: 'New Button', sequenceId: 0 };
+        onUpdate?.({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
+        editingButtonId = newButton.id;
     }
 
-    function removeItem(id: number) {
-        if (editingItemId === id) editingItemId = null;
-        onUpdate?.({ ...stateData, items: stateData.items.filter(i => i.id !== id) });
+    function removeButton(id: number) {
+        if (editingButtonId === id) editingButtonId = null;
+        onUpdate?.({ ...stateData, screenButtons: stateData.screenButtons.filter(b => b.id !== id) });
     }
 
-    function saveItem(updated: Item) {
-        onUpdate?.({ ...stateData, items: stateData.items.map(i => i.id === updated.id ? updated : i) });
-        editingItemId = null;
+    function saveButton(updated: ScreenButtonConfig) {
+        onUpdate?.({ ...stateData, screenButtons: stateData.screenButtons.map(b => b.id === updated.id ? updated : b) });
+        editingButtonId = null;
     }
 </script>
 
 <div class="item-list d-flex flex-col gap-xs">
-    {#if stateData.items.length === 0}
-        <p class="text-s text-muted text-center m-0 py-m">No items yet. Add one below.</p>
+    {#if stateData.screenButtons.length === 0}
+        <p class="text-s text-muted text-center m-0 py-m">No buttons yet. Add one below.</p>
     {:else}
-        {#each stateData.items as item (item.id)}
-            {#if editingItemId === item.id}
-                <ItemEditor
-                    {item}
-                    onSave={saveItem}
-                    onCancel={() => (editingItemId = null)}
+        {#each stateData.screenButtons as btn (btn.id)}
+            {#if editingButtonId === btn.id}
+                <ScreenButtonEditor
+                    button={btn}
+                    onSave={saveButton}
+                    onCancel={() => (editingButtonId = null)}
                 />
             {:else}
                 <div class="item-row d-flex items-center gap-xs rounded-m">
-                    <span class="flex-1 truncate text-s">{item.label}</span>
+                    <span class="flex-1 truncate text-s">{btn.label}</span>
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <sl-icon-button
                         name="pencil"
-                        label="Rename item"
-                        onclick={() => (editingItemId = item.id)}
+                        label="Rename button"
+                        onclick={() => (editingButtonId = btn.id)}
                     ></sl-icon-button>
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <sl-icon-button
                         name="trash"
-                        label="Delete item"
+                        label="Delete button"
                         class="danger-icon"
-                        onclick={() => removeItem(item.id)}
+                        onclick={() => removeButton(btn.id)}
                     ></sl-icon-button>
                 </div>
             {/if}
@@ -74,12 +75,16 @@
 
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button size="small" onclick={addItem}>
-        Add Item
+    <sl-button size="small" onclick={addButton}>
+        Add Button
     </sl-button>
 </div>
 
 <style>
+    .item-list {
+        /* inherited from ItemList */
+    }
+
     .item-row {
         padding: var(--sl-spacing-2x-small) var(--sl-spacing-x-small);
         border: 1px solid transparent;
