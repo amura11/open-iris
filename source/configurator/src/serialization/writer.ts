@@ -1,5 +1,5 @@
-import type { RemoteConfig, StateType } from '@model/state.ts';
-import type { Action } from '@model/actions.ts';
+import type { RemoteConfig, State, StateType } from '@model/state.ts';
+import type { Action, Sequence } from '@model/actions.ts';
 import { ButtonCode } from '@model/button-codes.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ function serializeSequenceRecord(seq: { id: number; actions: Action[] }): Uint8A
     return concat(parts);
 }
 
-function serializeStateRecord(state: import('@model/state.ts').State): Uint8Array {
+function serializeStateRecord(state: State): Uint8Array {
     const parts: Uint8Array[] = [];
 
     // Fixed-size header: id(2) + state_type(1) + button_fallback(1) + on_activate(2) + on_deactivate(2)
@@ -147,7 +147,7 @@ function serializeStateRecord(state: import('@model/state.ts').State): Uint8Arra
     return concat(parts);
 }
 
-function serializeMetadata(sequences: import('@model/actions.ts').Sequence[]): Uint8Array {
+function serializeMetadata(sequences: Sequence[]): Uint8Array {
     const named = sequences.filter(s => s.name !== undefined);
     const parts: Uint8Array[] = [];
     const header = new Uint8Array(2);

@@ -224,6 +224,19 @@ function parseConfig(data: ArrayBuffer): RemoteConfig { ... }
 
 Define a named `interface` or `class` for every object shape. Do not use inline object type literals as parameter types, return types, or variable annotations.
 
+### No inline import expressions in type positions
+
+Never use `import('…').TypeName` inline in a type position. Always add the type to the top-level `import` block instead.
+
+```ts
+// Wrong
+function serialize(state: import('@model/state.ts').State): Uint8Array { ... }
+
+// Correct
+import type { State } from '@model/state.ts';
+function serialize(state: State): Uint8Array { ... }
+```
+
 ```ts
 // Wrong
 function createButton(descriptor: { svgElementId: string; buttonCode: ButtonCode }): void { ... }
