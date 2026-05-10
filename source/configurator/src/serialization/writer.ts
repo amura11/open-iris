@@ -1,63 +1,14 @@
-import type { RemoteConfig, State, StateType, ConfiguratorMetadata } from '@model/state.ts';
-import type { Action, Sequence, IRCode, IRProtocol } from '@model/actions.ts';
+import type { RemoteConfig, State, ConfiguratorMetadata } from '@model/state.ts';
+import type { Action, Sequence, IRCode } from '@model/actions.ts';
 import { ACTION_TYPE_BYTE } from '@model/actions.ts';
 import { ButtonCode } from '@model/button-codes.ts';
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const MAGIC   = [0x49, 0x52, 0x49, 0x53] as const; // "IRIS"
-const VERSION = 0x04;
-
-const TYPE_STATES   = 0x01;
-const TYPE_SEQS     = 0x02;
-const TYPE_IR_CODES = 0x03;
-const TYPE_METADATA = 0xFF;
-
-const HEADER_SIZE         = 7;  // magic(4) + version(1) + root_state_id(2)
-const MANIFEST_ENTRY_SIZE = 11; // type_tag(1) + count(2) + index_offset(4) + data_offset(4)
-const INDEX_ENTRY_SIZE    = 8;  // id(2) + data_offset(4) + data_length(2)
-
-const IR_PROTOCOL_BYTE: Record<IRProtocol, number> = {
-    nec:     0x01,
-    sony:    0x02,
-    rc5:     0x03,
-    samsung: 0x04,
-    raw:     0x05,
-};
-
-const STATE_TYPE_BYTE: Record<StateType, number> = {
-    root:       0x00,
-    persistent: 0x01,
-    ephemeral:  0x02,
-};
-
-const BUTTON_CODE_BYTE: Record<ButtonCode, number> = {
-    [ButtonCode.POWER]:       0x00,
-    [ButtonCode.SOURCE]:      0x01,
-    [ButtonCode.DPAD_UP]:     0x02,
-    [ButtonCode.DPAD_DOWN]:   0x03,
-    [ButtonCode.DPAD_LEFT]:   0x04,
-    [ButtonCode.DPAD_RIGHT]:  0x05,
-    [ButtonCode.DPAD_CENTER]: 0x06,
-    [ButtonCode.BACK]:        0x07,
-    [ButtonCode.HOME]:        0x08,
-    [ButtonCode.PLAY_PAUSE]:  0x09,
-    [ButtonCode.MUTE]:        0x0A,
-    [ButtonCode.VOL_UP]:      0x0B,
-    [ButtonCode.VOL_DOWN]:    0x0C,
-    [ButtonCode.PAGE_UP]:     0x0D,
-    [ButtonCode.PAGE_DOWN]:   0x0E,
-    [ButtonCode.PROG_1]:      0x0F,
-    [ButtonCode.PROG_2]:      0x10,
-    [ButtonCode.PROG_3]:      0x11,
-    [ButtonCode.PROG_4]:      0x12,
-    [ButtonCode.PROG_5]:      0x13,
-    [ButtonCode.PROG_6]:      0x14,
-};
-
-const SEQUENCE_ID_NONE = 0xFFFF;
-const ICON_ID_NONE     = 0xFFFF;
-const METADATA_VERSION = 1;
+import {
+    MAGIC, VERSION,
+    TYPE_STATES, TYPE_SEQS, TYPE_IR_CODES, TYPE_METADATA,
+    HEADER_SIZE, MANIFEST_ENTRY_SIZE, INDEX_ENTRY_SIZE,
+    SEQUENCE_ID_NONE, ICON_ID_NONE, METADATA_VERSION,
+    IR_PROTOCOL_BYTE, BUTTON_CODE_BYTE, STATE_TYPE_BYTE,
+} from '@model/serialization.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

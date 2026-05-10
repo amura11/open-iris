@@ -1,61 +1,15 @@
-import type { RemoteConfig, State, StateType, ConfiguratorMetadata, JsonObject } from '@model/state.ts';
+import type { RemoteConfig, State, ConfiguratorMetadata, JsonObject } from '@model/state.ts';
 import type { Sequence, Action, ScreenButtonConfig, PhysicalButtonConfig, IRCode, IRProtocol } from '@model/actions.ts';
 import { BYTE_TO_ACTION_TYPE } from '@model/actions.ts';
-import { ButtonCode } from '@model/button-codes.ts';
 import type { Device, DeviceFunction, DeviceType } from '@model/devices.ts';
 import type { SequenceAnnotation } from '@model/actions.ts';
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const MAGIC   = [0x49, 0x52, 0x49, 0x53] as const; // "IRIS"
-const VERSION = 0x04;
-
-const TYPE_STATES   = 0x01;
-const TYPE_SEQS     = 0x02;
-const TYPE_IR_CODES = 0x03;
-const TYPE_METADATA = 0xFF;
-
-const INDEX_ENTRY_SIZE = 8; // id(2) + data_offset(4) + data_length(2)
-
-const STATE_TYPE_MAP: Record<number, StateType> = {
-    0x00: 'root',
-    0x01: 'persistent',
-    0x02: 'ephemeral',
-};
-
-const BYTE_TO_BUTTON_CODE: Record<number, ButtonCode> = {
-    0x00: ButtonCode.POWER,
-    0x01: ButtonCode.SOURCE,
-    0x02: ButtonCode.DPAD_UP,
-    0x03: ButtonCode.DPAD_DOWN,
-    0x04: ButtonCode.DPAD_LEFT,
-    0x05: ButtonCode.DPAD_RIGHT,
-    0x06: ButtonCode.DPAD_CENTER,
-    0x07: ButtonCode.BACK,
-    0x08: ButtonCode.HOME,
-    0x09: ButtonCode.PLAY_PAUSE,
-    0x0A: ButtonCode.MUTE,
-    0x0B: ButtonCode.VOL_UP,
-    0x0C: ButtonCode.VOL_DOWN,
-    0x0D: ButtonCode.PAGE_UP,
-    0x0E: ButtonCode.PAGE_DOWN,
-    0x0F: ButtonCode.PROG_1,
-    0x10: ButtonCode.PROG_2,
-    0x11: ButtonCode.PROG_3,
-    0x12: ButtonCode.PROG_4,
-    0x13: ButtonCode.PROG_5,
-    0x14: ButtonCode.PROG_6,
-};
-
-const BYTE_TO_IR_PROTOCOL: Record<number, IRProtocol> = {
-    0x01: 'nec',
-    0x02: 'sony',
-    0x03: 'rc5',
-    0x04: 'samsung',
-    0x05: 'raw',
-};
-
-const SEQUENCE_ID_NONE = 0xFFFF;
+import {
+    MAGIC, VERSION,
+    TYPE_STATES, TYPE_SEQS, TYPE_IR_CODES, TYPE_METADATA,
+    MANIFEST_ENTRY_SIZE, INDEX_ENTRY_SIZE,
+    SEQUENCE_ID_NONE,
+    BYTE_TO_IR_PROTOCOL, BYTE_TO_BUTTON_CODE, BYTE_TO_STATE_TYPE,
+} from '@model/serialization.ts';
 
 // ── Raw metadata shapes ───────────────────────────────────────────────────────
 
@@ -149,7 +103,7 @@ function parseStateRecord(bytes: Uint8Array, entry: IndexEntry, nextScreenButton
     const onActivateRaw   = readU16(bytes, p); p += 2;
     const onDeactivateRaw = readU16(bytes, p); p += 2;
 
-    const stateType = STATE_TYPE_MAP[stateTypeByte];
+    const stateType = BYTE_TO_STATE_TYPE[stateTypeByte];
 
     if (stateType === undefined) {
         throw new Error(`Unknown state_type byte: 0x${stateTypeByte.toString(16)}`);
@@ -321,7 +275,7 @@ export async function deserialize(bytes: Uint8Array): Promise<RemoteConfig> {
         const count       = readU16(bytes, pos + 1);
         const indexOffset = readU32(bytes, pos + 3);
         const dataOffset  = readU32(bytes, pos + 7);
-        pos += 11;
+        pos += MANIFEST_ENTRY_SIZE;
 
         if (typeTag === TYPE_STATES) {
             statesSection = { count, indexOffset };
