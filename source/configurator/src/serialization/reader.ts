@@ -1,14 +1,18 @@
-import type { RemoteConfig, State, StateType } from '@model/state.ts';
-import type { Sequence, Action, ActionType, ScreenButtonConfig, PhysicalButtonConfig } from '@model/actions.ts';
+import type { RemoteConfig, State, StateType, ConfiguratorMetadata, JsonObject } from '@model/state.ts';
+import type { Sequence, Action, ScreenButtonConfig, PhysicalButtonConfig, IRCode, IRProtocol } from '@model/actions.ts';
+import { BYTE_TO_ACTION_TYPE } from '@model/actions.ts';
 import { ButtonCode } from '@model/button-codes.ts';
+import type { Device, DeviceFunction, DeviceType } from '@model/devices.ts';
+import type { SequenceAnnotation } from '@model/actions.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const MAGIC   = [0x49, 0x52, 0x49, 0x53] as const; // "IRIS"
-const VERSION = 0x03;
+const VERSION = 0x04;
 
 const TYPE_STATES   = 0x01;
 const TYPE_SEQS     = 0x02;
+const TYPE_IR_CODES = 0x03;
 const TYPE_METADATA = 0xFF;
 
 const INDEX_ENTRY_SIZE = 8; // id(2) + data_offset(4) + data_length(2)
@@ -19,7 +23,6 @@ const STATE_TYPE_MAP: Record<number, StateType> = {
     0x02: 'ephemeral',
 };
 
-// Inverse of the writer's BUTTON_CODE_BYTE map
 const BYTE_TO_BUTTON_CODE: Record<number, ButtonCode> = {
     0x00: ButtonCode.POWER,
     0x01: ButtonCode.SOURCE,
@@ -44,7 +47,51 @@ const BYTE_TO_BUTTON_CODE: Record<number, ButtonCode> = {
     0x14: ButtonCode.PROG_6,
 };
 
+const BYTE_TO_IR_PROTOCOL: Record<number, IRProtocol> = {
+    0x01: 'nec',
+    0x02: 'sony',
+    0x03: 'rc5',
+    0x04: 'samsung',
+    0x05: 'raw',
+};
+
 const SEQUENCE_ID_NONE = 0xFFFF;
+
+// ── Raw metadata shapes ───────────────────────────────────────────────────────
+
+interface RawIRTemplate {
+    type: 'ir_send';
+    protocol: IRProtocol;
+    code: string;
+}
+
+interface RawRESTTemplate {
+    type: 'rest_call';
+    method: string;
+    url: string;
+    body?: string;
+}
+
+type RawTemplate = RawIRTemplate | RawRESTTemplate;
+
+interface RawDeviceFunction {
+    name: string;
+    template: RawTemplate;
+}
+
+interface RawMetadataDevice {
+    id: string;
+    name: string;
+    manufacturer: string;
+    type: DeviceType;
+    functions: RawDeviceFunction[];
+}
+
+interface RawMetadata {
+    version?: number;
+    devices: RawMetadataDevice[];
+    sequenceAnnotations: SequenceAnnotation[];
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,18 +105,27 @@ function readU32(bytes: Uint8Array, offset: number): number {
     return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
 }
 
-function readNullTerminated(bytes: Uint8Array, offset: number): { value: string; nextOffset: number } {
+interface NullTerminatedResult { value: string; nextOffset: number; }
+
+function readNullTerminated(bytes: Uint8Array, offset: number): NullTerminatedResult {
     let end = offset;
-    while (end < bytes.length && bytes[end] !== 0) end++;
+
+    while (end < bytes.length && bytes[end] !== 0) {
+        end++;
+    }
+
     return { value: decoder.decode(bytes.subarray(offset, end)), nextOffset: end + 1 };
 }
 
-// ── Section index types ───────────────────────────────────────────────────────
+// ── Section index ─────────────────────────────────────────────────────────────
 
-interface IndexEntry { id: number; dataOffset: number; dataLength: number; }
-interface SectionIndex { entries: IndexEntry[]; }
+interface IndexEntry            { id: number; dataOffset: number; dataLength: number; }
+interface IndexedSectionManifest { count: number; indexOffset: number; }
+interface BlobSectionManifest    { count: number; dataOffset: number; }
+interface MetadataSectionManifest { byteLength: number; dataOffset: number; }
+interface MutableCounter         { value: number; }
 
-function readIndex(bytes: Uint8Array, indexOffset: number, count: number): SectionIndex {
+function readIndex(bytes: Uint8Array, indexOffset: number, count: number): IndexEntry[] {
     const entries: IndexEntry[] = [];
     for (let i = 0; i < count; i++) {
         const base = indexOffset + i * INDEX_ENTRY_SIZE;
@@ -79,26 +135,25 @@ function readIndex(bytes: Uint8Array, indexOffset: number, count: number): Secti
             dataLength: readU16(bytes, base + 6),
         });
     }
-    return { entries };
-}
-
-function findEntry(index: SectionIndex, id: number): IndexEntry | undefined {
-    return index.entries.find(e => e.id === id);
+    return entries;
 }
 
 // ── Record parsers ────────────────────────────────────────────────────────────
 
-function parseStateRecord(bytes: Uint8Array, entry: IndexEntry, nextScreenButtonId: { value: number }): State {
+function parseStateRecord(bytes: Uint8Array, entry: IndexEntry, nextScreenButtonId: MutableCounter): State {
     let p = entry.dataOffset;
 
-    const id             = readU16(bytes, p); p += 2;
-    const stateTypeByte  = bytes[p++];
-    const buttonFallback = bytes[p++] !== 0;
-    const onActivateRaw  = readU16(bytes, p); p += 2;
+    const id              = readU16(bytes, p); p += 2;
+    const stateTypeByte   = bytes[p++];
+    const buttonFallback  = bytes[p++] !== 0;
+    const onActivateRaw   = readU16(bytes, p); p += 2;
     const onDeactivateRaw = readU16(bytes, p); p += 2;
 
     const stateType = STATE_TYPE_MAP[stateTypeByte];
-    if (stateType === undefined) throw new Error(`Unknown state_type byte: 0x${stateTypeByte.toString(16)}`);
+
+    if (stateType === undefined) {
+        throw new Error(`Unknown state_type byte: 0x${stateTypeByte.toString(16)}`);
+    }
 
     const { value: name, nextOffset: afterName } = readNullTerminated(bytes, p);
     p = afterName;
@@ -110,7 +165,10 @@ function parseStateRecord(bytes: Uint8Array, entry: IndexEntry, nextScreenButton
         p++; // reserved
         const sequenceId = readU16(bytes, p); p += 2;
         const buttonCode = BYTE_TO_BUTTON_CODE[buttonCodeByte];
-        if (buttonCode !== undefined) physicalButtons.push({ buttonCode, sequenceId });
+
+        if (buttonCode !== undefined) {
+            physicalButtons.push({ buttonCode, sequenceId });
+        }
     }
 
     const screenCount = readU16(bytes, p); p += 2;
@@ -129,13 +187,8 @@ function parseStateRecord(bytes: Uint8Array, entry: IndexEntry, nextScreenButton
     }
 
     return {
-        id,
-        name,
-        stateType,
-        buttonFallback,
-        physicalButtons,
-        screenButtons,
-        onActivate:   onActivateRaw  === SEQUENCE_ID_NONE ? null : onActivateRaw,
+        id, name, stateType, buttonFallback, physicalButtons, screenButtons,
+        onActivate:   onActivateRaw   === SEQUENCE_ID_NONE ? null : onActivateRaw,
         onDeactivate: onDeactivateRaw === SEQUENCE_ID_NONE ? null : onDeactivateRaw,
     };
 }
@@ -148,39 +201,107 @@ function parseSequenceRecord(bytes: Uint8Array, entry: IndexEntry): Sequence {
 
     const actions: Action[] = [];
     for (let i = 0; i < actionCount; i++) {
-        // action_type byte placeholder — expand when ActionType enum is defined
-        p++; // action_type
+        const typeByte = bytes[p++];
         const params: [number, number, number, number] = [bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]];
         p += 4;
-        actions.push({ type: 'navigate' as ActionType, params }); // type placeholder
+        const type = BYTE_TO_ACTION_TYPE[typeByte] ?? 'navigate';
+        actions.push({ type, params });
     }
 
     return { id, actions };
 }
 
-function parseMetadata(bytes: Uint8Array, dataOffset: number, dataLength: number): Map<number, string> {
-    const names = new Map<number, string>();
-    if (dataLength === 0) return names;
+function parseIRCodesSection(bytes: Uint8Array, dataOffset: number, count: number): IRCode[] {
+    const codes: IRCode[] = [];
+    const view = new DataView(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength);
+    let p = dataOffset + 2; // skip the count(2) that's already in the manifest
 
-    let p = dataOffset;
-    const nameCount = readU16(bytes, p); p += 2;
+    for (let i = 0; i < count; i++) {
+        const id           = readU16(bytes, p); p += 2;
+        const protocolByte = bytes[p++];
+        const code         = view.getBigUint64(p, true); p += 8;
+        const protocol = BYTE_TO_IR_PROTOCOL[protocolByte];
 
-    for (let i = 0; i < nameCount; i++) {
-        const seqId = readU16(bytes, p); p += 2;
-        const { value: name, nextOffset } = readNullTerminated(bytes, p);
-        p = nextOffset;
-        names.set(seqId, name);
+        if (!protocol) {
+            throw new Error(`Unknown IR protocol byte: 0x${protocolByte.toString(16)}`);
+        }
+
+        codes.push({ id, protocol, code });
     }
 
-    return names;
+    return codes;
+}
+
+async function decompressMetadata(bytes: Uint8Array, dataOffset: number, byteLength: number): Promise<ConfiguratorMetadata> {
+    const compressed = bytes.slice(dataOffset, dataOffset + byteLength);
+
+    const stream = new DecompressionStream('deflate-raw');
+    const writer = stream.writable.getWriter();
+
+    writer.write(compressed);
+    writer.close();
+
+    const chunks: Uint8Array[] = [];
+    const reader = stream.readable.getReader();
+
+    while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+            break;
+        }
+
+        chunks.push(value);
+    }
+
+    const json    = decoder.decode(concatChunks(chunks));
+    const rawJson = JSON.parse(json) as JsonObject;
+    const raw     = rawJson as unknown as RawMetadata;
+
+    const devices: Device[] = (raw.devices ?? []).map((d): Device => ({
+        id:           d.id,
+        name:         d.name,
+        manufacturer: d.manufacturer,
+        type:         d.type,
+        functions:    (d.functions ?? []).map((f): DeviceFunction => {
+            const template = f.template;
+
+            if (template.type === 'ir_send') {
+                return {
+                    name:     f.name,
+                    template: { type: 'ir_send', protocol: template.protocol, code: BigInt(template.code) },
+                };
+            }
+
+            return { name: f.name, template };
+        }),
+    }));
+
+    const sequenceAnnotations: SequenceAnnotation[] = raw.sequenceAnnotations ?? [];
+
+    const { version: _version, devices: _devices, sequenceAnnotations: _sequenceAnnotations, ...extra } = rawJson;
+
+    return { devices, sequenceAnnotations, extra: extra as JsonObject };
+}
+
+function concatChunks(chunks: Uint8Array[]): Uint8Array {
+    const total  = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(total);
+    let offset   = 0;
+    for (const c of chunks) {
+        result.set(c, offset);
+        offset += c.length;
+    }
+    return result;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function deserialize(bytes: Uint8Array): RemoteConfig {
-    // Validate magic
+export async function deserialize(bytes: Uint8Array): Promise<RemoteConfig> {
     for (let i = 0; i < 4; i++) {
-        if (bytes[i] !== MAGIC[i]) throw new Error('Invalid file: missing IRIS magic bytes');
+        if (bytes[i] !== MAGIC[i]) {
+            throw new Error('Invalid file: missing IRIS magic bytes');
+        }
     }
     if (bytes[4] !== VERSION) {
         throw new Error(`Unsupported version: 0x${bytes[4].toString(16).padStart(2, '0')} (expected 0x${VERSION.toString(16)})`);
@@ -189,12 +310,12 @@ export function deserialize(bytes: Uint8Array): RemoteConfig {
     const rootStateId  = readU16(bytes, 5);
     const sectionCount = readU16(bytes, 7);
 
-    // ── Parse manifest ──
-    let statesSection:   { count: number; indexOffset: number } | null = null;
-    let seqsSection:     { count: number; indexOffset: number } | null = null;
-    let metadataSection: { byteLength: number; dataOffset: number } | null = null;
+    let statesSection:   IndexedSectionManifest   | null = null;
+    let seqsSection:     IndexedSectionManifest   | null = null;
+    let irCodesSection:  BlobSectionManifest      | null = null;
+    let metadataSection: MetadataSectionManifest  | null = null;
 
-    let pos = 9; // after header(7) + section_count(2)
+    let pos = 9;
     for (let i = 0; i < sectionCount; i++) {
         const typeTag     = bytes[pos];
         const count       = readU16(bytes, pos + 1);
@@ -202,39 +323,44 @@ export function deserialize(bytes: Uint8Array): RemoteConfig {
         const dataOffset  = readU32(bytes, pos + 7);
         pos += 11;
 
-        if      (typeTag === TYPE_STATES)   statesSection   = { count, indexOffset };
-        else if (typeTag === TYPE_SEQS)     seqsSection     = { count, indexOffset };
-        else if (typeTag === TYPE_METADATA) metadataSection = { byteLength: count, dataOffset };
-        // unknown type tags are silently ignored
+        if (typeTag === TYPE_STATES) {
+            statesSection = { count, indexOffset };
+        } else if (typeTag === TYPE_SEQS) {
+            seqsSection = { count, indexOffset };
+        } else if (typeTag === TYPE_IR_CODES) {
+            irCodesSection = { count, dataOffset };
+        } else if (typeTag === TYPE_METADATA) {
+            metadataSection = { byteLength: count, dataOffset };
+        }
+        // unknown section types are silently ignored
     }
 
-    // ── Read sequences ──
     const sequences: Sequence[] = [];
     if (seqsSection && seqsSection.count > 0) {
         const index = readIndex(bytes, seqsSection.indexOffset, seqsSection.count);
-        for (const entry of index.entries) {
+
+        for (const entry of index) {
             sequences.push(parseSequenceRecord(bytes, entry));
         }
     }
 
-    // ── Apply sequence names from metadata ──
-    if (metadataSection) {
-        const names = parseMetadata(bytes, metadataSection.dataOffset, metadataSection.byteLength);
-        for (const seq of sequences) {
-            const name = names.get(seq.id);
-            if (name !== undefined) seq.name = name;
-        }
-    }
+    const irCodes: IRCode[] = irCodesSection && irCodesSection.count > 0
+        ? parseIRCodesSection(bytes, irCodesSection.dataOffset, irCodesSection.count)
+        : [];
 
-    // ── Read states ──
+    const metadata: ConfiguratorMetadata = metadataSection && metadataSection.byteLength > 0
+        ? await decompressMetadata(bytes, metadataSection.dataOffset, metadataSection.byteLength)
+        : { devices: [], sequenceAnnotations: [], extra: {} };
+
     const states: State[] = [];
     const nextScreenButtonId = { value: 1 };
     if (statesSection && statesSection.count > 0) {
         const index = readIndex(bytes, statesSection.indexOffset, statesSection.count);
-        for (const entry of index.entries) {
+
+        for (const entry of index) {
             states.push(parseStateRecord(bytes, entry, nextScreenButtonId));
         }
     }
 
-    return { rootStateId, states, sequences };
+    return { rootStateId, states, sequences, irCodes, metadata };
 }

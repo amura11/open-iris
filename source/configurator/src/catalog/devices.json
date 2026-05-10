@@ -1,0 +1,59 @@
+[
+    {
+        "id": "samsung-un-series-tv",
+        "name": "UN Series TV",
+        "manufacturer": "Samsung",
+        "type": "ir",
+        "functions": [
+            { "name": "Power",       "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E040BF" } },
+            { "name": "Volume Up",   "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0E01F" } },
+            { "name": "Volume Down", "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0D02F" } },
+            { "name": "Mute",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0F00F" } },
+            { "name": "Channel Up",  "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E048B7" } },
+            { "name": "Channel Down","template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E008F7" } },
+            { "name": "HDMI 1",      "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0807F" } },
+            { "name": "HDMI 2",      "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0407F" } },
+            { "name": "Home",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E09E61" } },
+            { "name": "Menu",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E058A7" } },
+            { "name": "Back",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E01DE2" } },
+            { "name": "Up",          "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E006F9" } },
+            { "name": "Down",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E08679" } },
+            { "name": "Left",        "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E0A659" } },
+            { "name": "Right",       "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E046B9" } },
+            { "name": "OK",          "template": { "type": "ir_send", "protocol": "samsung", "code": "0xE0E016E9" } }
+        ]
+    },
+    {
+        "id": "yamaha-rx-v-receiver",
+        "name": "RX-V Series Receiver",
+        "manufacturer": "Yamaha",
+        "type": "ir",
+        "functions": [
+            { "name": "Power On",       "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E817E81" } },
+            { "name": "Power Off",      "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81FE01" } },
+            { "name": "Volume Up",      "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E819E61" } },
+            { "name": "Volume Down",    "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81BE41" } },
+            { "name": "Mute",           "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81CE31" } },
+            { "name": "Input HDMI 1",   "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E815EA1" } },
+            { "name": "Input HDMI 2",   "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81DE21" } },
+            { "name": "Input HDMI 3",   "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E813EC1" } },
+            { "name": "Input HDMI 4",   "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81BE41" } },
+            { "name": "Input Optical",  "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81AE51" } },
+            { "name": "Surround Auto",  "template": { "type": "ir_send", "protocol": "nec", "code": "0x7E816E91" } },
+            { "name": "Surround Stereo","template": { "type": "ir_send", "protocol": "nec", "code": "0x7E81EE11" } }
+        ]
+    },
+    {
+        "id": "philips-hue-bridge",
+        "name": "Hue Bridge",
+        "manufacturer": "Philips",
+        "type": "rest",
+        "functions": [
+            { "name": "Lights On",        "template": { "type": "rest_call", "method": "PUT", "url": "/api/lights/1/state", "body": "{\"on\": true}" } },
+            { "name": "Lights Off",       "template": { "type": "rest_call", "method": "PUT", "url": "/api/lights/1/state", "body": "{\"on\": false}" } },
+            { "name": "Brightness 25%",   "template": { "type": "rest_call", "method": "PUT", "url": "/api/lights/1/state", "body": "{\"bri\": 64}" } },
+            { "name": "Brightness 50%",   "template": { "type": "rest_call", "method": "PUT", "url": "/api/lights/1/state", "body": "{\"bri\": 128}" } },
+            { "name": "Brightness 100%",  "template": { "type": "rest_call", "method": "PUT", "url": "/api/lights/1/state", "body": "{\"bri\": 254}" } }
+        ]
+    }
+]

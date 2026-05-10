@@ -16,8 +16,10 @@
     import type { Selection } from '@model/selection.ts';
     import { downloadBin } from '@serialization/writer.ts';
     import { deserialize } from '@serialization/reader.ts';
+    import type { Device } from '@model/devices.ts';
     import RemotePreview from '@components/RemotePreview.svelte';
     import InspectorPanel from '@components/InspectorPanel.svelte';
+    import DeviceDiscoveryDialog from '@components/DeviceDiscoveryDialog.svelte';
 
     let layout = $state<RemoteLayout | null>(null);
     let remoteConfig = $state<RemoteConfig>({
@@ -33,7 +35,10 @@
             buttonFallback: false,
         }],
         sequences: [],
+        irCodes:  [],
+        metadata: { devices: [], sequenceAnnotations: [], extra: {} },
     });
+    let deviceDialogOpen = $state(false);
     let loadError   = $state<string | null>(null);
     let importError = $state<string | null>(null);
 
@@ -137,8 +142,8 @@
         deleteDialogEl?.hide();
     }
 
-    function handleExport() {
-        downloadBin(remoteConfig);
+    async function handleExport() {
+        await downloadBin(remoteConfig);
     }
 
     function handleImport() {
@@ -147,11 +152,9 @@
         input.accept = '.bin';
         input.onchange = async () => {
             const file = input.files?.[0];
-            if (!file) {
-                return;
-            }
+            if (!file) return;
             try {
-                remoteConfig    = deserialize(new Uint8Array(await file.arrayBuffer()));
+                remoteConfig    = await deserialize(new Uint8Array(await file.arrayBuffer()));
                 selectedStateId = remoteConfig.rootStateId;
                 importError     = null;
             } catch (e) {
@@ -159,6 +162,29 @@
             }
         };
         input.click();
+    }
+
+    function handleDeviceAdd(device: Device) {
+        if (remoteConfig.metadata.devices.some(d => d.id === device.id)) {
+            return;
+        }
+        remoteConfig = {
+            ...remoteConfig,
+            metadata: {
+                ...remoteConfig.metadata,
+                devices: [...remoteConfig.metadata.devices, device],
+            },
+        };
+    }
+
+    function handleDeviceRemove(deviceId: string) {
+        remoteConfig = {
+            ...remoteConfig,
+            metadata: {
+                ...remoteConfig.metadata,
+                devices: remoteConfig.metadata.devices.filter(d => d.id !== deviceId),
+            },
+        };
     }
 </script>
 
@@ -184,6 +210,17 @@
         <span class="font-mono text-2xs font-normal tracking-looser text-muted uppercase self-end pb-3xs">OPEN SOURCE UNIVERSAL REMOTE</span>
 
         <div class="d-flex items-center gap-s ml-auto">
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <sl-button size="small" onclick={() => { deviceDialogOpen = true; }}>
+                <sl-icon slot="prefix" name="cpu"></sl-icon>
+                Devices
+                {#if remoteConfig.metadata.devices.length > 0}
+                    <sl-badge slot="suffix" variant="primary" pill>
+                        {remoteConfig.metadata.devices.length}
+                    </sl-badge>
+                {/if}
+            </sl-button>
             <sl-tooltip content="Import remote.bin">
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -296,6 +333,13 @@
             </div>
         {/if}
     </main>
+
+    <DeviceDiscoveryDialog
+        bind:open={deviceDialogOpen}
+        installedDevices={remoteConfig.metadata.devices}
+        onAdd={handleDeviceAdd}
+        onRemove={handleDeviceRemove}
+    />
 
     <sl-dialog bind:this={deleteDialogEl} label="Delete State?">
         Delete &ldquo;{pendingDeleteName}&rdquo;? This cannot be undone.
