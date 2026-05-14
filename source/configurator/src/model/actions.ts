@@ -70,9 +70,7 @@ export type ActionTemplate =
 
 export interface SequenceAnnotation {
     sequenceId: SequenceId;
-    name: string;
-    source?: {
-        deviceId: DeviceId;
-        functionName: string;
-    };
+    name?: string;          // absent for anonymous sequences; present for named/reusable ones
+    deviceId?: DeviceId;    // set when created from a device function; co-present with functionName
+    functionName?: string;  // set when created from a device function; co-present with deviceId
 }

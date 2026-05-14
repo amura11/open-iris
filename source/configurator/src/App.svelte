@@ -164,6 +164,13 @@
         input.click();
     }
 
+    function handleConfigUpdate(updated: RemoteConfig) {
+        remoteConfig    = updated;
+        selectedStateId = remoteConfig.states.some(s => s.id === selectedStateId)
+            ? selectedStateId
+            : remoteConfig.rootStateId;
+    }
+
     function handleDeviceAdd(device: Device) {
         if (remoteConfig.metadata.devices.some(d => d.id === device.id)) {
             return;
@@ -306,10 +313,12 @@
                 {selection}
                 {layout}
                 activeState={selectedState}
+                {remoteConfig}
                 width={panelWidth}
                 collapsed={panelCollapsed}
                 focusTrigger={nameInputFocusTrigger}
                 onStateUpdate={handleStateUpdate}
+                onConfigUpdate={handleConfigUpdate}
                 onToggleCollapse={togglePanel}
                 onClearSelection={() => {
                     selection = null;

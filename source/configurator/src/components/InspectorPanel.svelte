@@ -2,7 +2,7 @@
     import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { State } from '@model/state.ts';
+    import type { State, RemoteConfig } from '@model/state.ts';
     import StateSettings from '@components/StateSettings.svelte';
     import ScreenInspector from '@components/ScreenInspector.svelte';
     import ButtonInspector from '@components/ButtonInspector.svelte';
@@ -11,15 +11,17 @@
         selection: Selection;
         layout: RemoteLayout;
         activeState: State;
+        remoteConfig: RemoteConfig;
         width: number;
         collapsed: boolean;
         focusTrigger?: number;
         onStateUpdate?: (updated: State) => void;
+        onConfigUpdate?: (updated: RemoteConfig) => void;
         onToggleCollapse?: () => void;
         onClearSelection?: () => void;
     }
 
-    let { selection, layout, activeState, width, collapsed, focusTrigger = 0, onStateUpdate, onToggleCollapse, onClearSelection }: Props = $props();
+    let { selection, layout, activeState, remoteConfig, width, collapsed, focusTrigger = 0, onStateUpdate, onConfigUpdate, onToggleCollapse, onClearSelection }: Props = $props();
 
     const panelTitle = 'Properties';
 
@@ -83,9 +85,15 @@
 
             <div class="selection-section">
                 {#if selection?.type === 'screen'}
-                    <ScreenInspector state={activeState} onUpdate={onStateUpdate} />
+                    <ScreenInspector state={activeState} {remoteConfig} onUpdate={onStateUpdate} onConfigUpdate={onConfigUpdate ?? (() => {})} />
                 {:else if selection?.type === 'button' && activeButton}
-                    <ButtonInspector button={activeButton} />
+                    <ButtonInspector
+                        button={activeButton}
+                        {layout}
+                        {activeState}
+                        {remoteConfig}
+                        onConfigUpdate={onConfigUpdate ?? (() => {})}
+                    />
                 {:else}
                     <p class="placeholder">Select a button or the screen to view its properties.</p>
                 {/if}
