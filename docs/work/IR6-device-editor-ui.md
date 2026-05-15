@@ -1,5 +1,7 @@
 # Device Editor UI
 
+> **Status: DEFERRED** — Not scheduled for the current implementation wave. See IR7 (Screen Button Display & QoL) for the next planned work.
+
 **Goal:** Implement the UI for creating custom devices and editing existing ones (including downloaded catalog devices). This is deferred from IR4, which covers read-only device viewing and catalog-based installation only.
 
 Depends on IR4 (data model, device library, and discovery dialog).
