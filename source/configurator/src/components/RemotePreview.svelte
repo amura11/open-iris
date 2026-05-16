@@ -1,17 +1,27 @@
 <script lang="ts">
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { RemoteConfig } from '@model/state.ts';
+    import type { RemoteConfig, State } from '@model/state.ts';
     import type { Selection } from '@model/selection.ts';
+    import { assignmentLabel } from '@model/assignment-utils.ts';
 
     interface Props {
         layout: RemoteLayout;
         config: RemoteConfig;
+        activeState: State;
         selection: Selection;
         onScreenClick?: () => void;
         onButtonClick?: (buttonCode: string) => void;
+        onEmptyClick?:  () => void;
     }
 
-    let { layout, config: _config, selection, onScreenClick, onButtonClick }: Props = $props();
+    let { layout, config, activeState, selection, onScreenClick, onButtonClick, onEmptyClick }: Props = $props();
+
+    let tooltipVisible    = $state(false);
+    let tooltipLabel      = $state('');
+    let tooltipAssignment = $state('');
+    let tooltipX          = $state(0);
+    let tooltipY          = $state(0);
+    let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
 
     let viewportEl  = $state<HTMLDivElement | undefined>();
     let transformEl = $state<HTMLDivElement | undefined>();
@@ -85,7 +95,32 @@
         applyFit(viewportEl.getBoundingClientRect(), svg.clientWidth, svg.clientHeight, true);
     }
 
-    // ── SVG element click listeners ──────────────────────────────────────────
+    // ── Canvas click handler (button, screen, or empty area) ────────────────
+
+    function handleCanvasClick(e: MouseEvent) {
+        if (dragMoved || !transformEl) return;
+        const target = e.target as Element;
+
+        const screenEl = transformEl.querySelector(`#${layout.screen.svgElementId}`);
+        if (screenEl?.contains(target)) {
+            zoomToElement(screenEl);
+            onScreenClick?.();
+            return;
+        }
+
+        for (const btn of layout.buttons) {
+            const el = transformEl.querySelector(`#${btn.svgElementId}`);
+            if (el?.contains(target)) {
+                zoomToElement(el);
+                onButtonClick?.(btn.buttonCode);
+                return;
+            }
+        }
+
+        onEmptyClick?.();
+    }
+
+    // ── Button tooltips ──────────────────────────────────────────────────────
 
     $effect(() => {
         if (!transformEl) {
@@ -94,38 +129,54 @@
 
         const cleanup: (() => void)[] = [];
 
-        const screenEl = transformEl.querySelector(`#${layout.screen.svgElementId}`);
-
-        if (screenEl) {
-            const handler = () => {
-                if (dragMoved) {
-                    return;
-                }
-
-                zoomToElement(screenEl);
-                onScreenClick?.();
-            };
-            screenEl.addEventListener('click', handler);
-            cleanup.push(() => screenEl.removeEventListener('click', handler));
-        }
-
+        // Per-button tooltip on hover (500ms delay)
         for (const btn of layout.buttons) {
             const el = transformEl.querySelector(`#${btn.svgElementId}`);
-            if (el) {
-                const handler = () => {
-                    if (dragMoved) {
-                        return;
-                    }
+            if (!el) continue;
 
-                    zoomToElement(el);
-                    onButtonClick?.(btn.buttonCode);
-                };
-                el.addEventListener('click', handler);
-                cleanup.push(() => el.removeEventListener('click', handler));
-            }
+            const enterHandler = () => {
+                const pb = activeState.physicalButtons.find(p => p.buttonCode === btn.buttonCode);
+                tooltipLabel      = btn.friendlyName;
+                tooltipAssignment = pb ? assignmentLabel(pb.assignment, config) : 'Unassigned';
+                const rect = el.getBoundingClientRect();
+                const vr = viewportEl?.getBoundingClientRect();
+                tooltipX = rect.left + rect.width / 2 - (vr?.left ?? 0);
+                tooltipY = rect.top - (vr?.top ?? 0) - 8;
+                tooltipTimer = setTimeout(() => { tooltipVisible = true; }, 300);
+            };
+            const leaveHandler = () => {
+                if (tooltipTimer !== null) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+                tooltipVisible = false;
+            };
+
+            el.addEventListener('mouseenter', enterHandler);
+            el.addEventListener('mouseleave', leaveHandler);
+            cleanup.push(() => {
+                el.removeEventListener('mouseenter', enterHandler);
+                el.removeEventListener('mouseleave', leaveHandler);
+            });
         }
 
-        return () => cleanup.forEach(fn => fn());
+        return () => {
+            if (tooltipTimer !== null) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+            tooltipVisible = false;
+            cleanup.forEach(fn => fn());
+        };
+    });
+
+    // ── Assignment indicator ─────────────────────────────────────────────────
+
+    $effect(() => {
+        if (!transformEl) return;
+
+        transformEl.querySelectorAll('.iris-assigned').forEach(el => el.classList.remove('iris-assigned'));
+
+        const assignedCodes = new Set(activeState.physicalButtons.map(pb => pb.buttonCode));
+        for (const btn of layout.buttons) {
+            if (assignedCodes.has(btn.buttonCode)) {
+                transformEl.querySelector(`#${btn.svgElementId}`)?.classList.add('iris-assigned');
+            }
+        }
     });
 
     // ── Selection highlight ──────────────────────────────────────────────────
@@ -255,12 +306,14 @@
     });
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     class="viewport"
     class:dragging={isDragging}
     bind:this={viewportEl}
     onmousedown={handleMousedown}
+    onclick={handleCanvasClick}
 >
     <div
         class="transform-layer"
@@ -278,6 +331,13 @@
     </div>
 
     <p class="hint" aria-hidden="true">Scroll to zoom · Drag to pan · Click to focus</p>
+
+    {#if tooltipVisible}
+        <div class="btn-tooltip" style="left: {tooltipX}px; top: {tooltipY}px">
+            <span class="btn-tooltip-name">{tooltipLabel}</span>
+            <span class="btn-tooltip-assignment">{tooltipAssignment}</span>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -367,9 +427,53 @@
         pointer-events: none;
     }
 
-    /* ── SVG selection highlight ─────────────────────────────────────────── */
+    /* ── Button tooltip ─────────────────────────────────────────────────── */
 
+    .btn-tooltip {
+        position: absolute;
+        transform: translateX(-50%) translateY(calc(-100% - 6px));
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--sl-border-radius-small);
+        padding: 4px 10px;
+        font-family: var(--font-sans);
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 10;
+        backdrop-filter: var(--surface-glass);
+    }
+
+    .btn-tooltip-name {
+        font-size: var(--sl-font-size-x-small);
+        font-weight: var(--sl-font-weight-semibold);
+        color: var(--color-text-primary);
+    }
+
+    .btn-tooltip-assignment {
+        font-size: var(--sl-font-size-2x-small);
+        color: var(--color-text-secondary);
+    }
+
+    /* ── SVG borders: assigned + selected ──────────────────────────────── */
+
+    /* Assigned (not selected): subtle primary border */
+    :global(.iris-assigned:not(.iris-selected)) {
+        filter:
+            drop-shadow(2px 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
+            drop-shadow(-2px 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
+            drop-shadow(0 2px 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
+            drop-shadow(0 -2px 0 color-mix(in srgb, var(--color-primary) 45%, transparent));
+    }
+
+    /* Selected: full-strength primary border */
     :global(.iris-selected) {
-        filter: drop-shadow(0 0 8px var(--color-primary)) drop-shadow(0 0 3px var(--color-primary));
+        filter:
+            drop-shadow(2px 0 0 var(--color-primary))
+            drop-shadow(-2px 0 0 var(--color-primary))
+            drop-shadow(0 2px 0 var(--color-primary))
+            drop-shadow(0 -2px 0 var(--color-primary));
     }
 </style>

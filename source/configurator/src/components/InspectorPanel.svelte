@@ -1,9 +1,9 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+    import '@shoelace-style/shoelace/dist/components/button/button.js';
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
-    import StateSettings from '@components/StateSettings.svelte';
     import ScreenInspector from '@components/ScreenInspector.svelte';
     import ButtonInspector from '@components/ButtonInspector.svelte';
 
@@ -14,14 +14,13 @@
         remoteConfig: RemoteConfig;
         width: number;
         collapsed: boolean;
-        focusTrigger?: number;
         onStateUpdate?: (updated: State) => void;
         onConfigUpdate?: (updated: RemoteConfig) => void;
         onToggleCollapse?: () => void;
         onClearSelection?: () => void;
     }
 
-    let { selection, layout, activeState, remoteConfig, width, collapsed, focusTrigger = 0, onStateUpdate, onConfigUpdate, onToggleCollapse, onClearSelection }: Props = $props();
+    let { selection, layout, activeState, remoteConfig, width, collapsed, onStateUpdate, onConfigUpdate, onToggleCollapse, onClearSelection }: Props = $props();
 
     const panelTitle = 'Properties';
 
@@ -73,16 +72,6 @@
         </div>
 
         <div class="panel-body">
-            <div class="state-section">
-                <StateSettings
-                    activeState={activeState}
-                    focusTrigger={focusTrigger}
-                    onUpdate={onStateUpdate}
-                />
-            </div>
-
-            <hr class="section-divider" />
-
             <div class="selection-section">
                 {#if selection?.type === 'screen'}
                     <ScreenInspector state={activeState} {remoteConfig} onUpdate={onStateUpdate} onConfigUpdate={onConfigUpdate ?? (() => {})} />
@@ -99,6 +88,14 @@
                 {/if}
             </div>
         </div>
+
+        {#if selection}
+            <div class="panel-footer">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <sl-button size="small" variant="primary" style="width: 100%;" onclick={onClearSelection}>Done</sl-button>
+            </div>
+        {/if}
     {/if}
 </aside>
 
@@ -159,21 +156,15 @@
         flex-direction: column;
     }
 
-    .state-section {
-        padding: var(--sl-spacing-medium);
-        flex-shrink: 0;
-    }
-
-    .section-divider {
-        border: none;
-        border-top: 1px solid var(--color-border);
-        margin: 0;
-        flex-shrink: 0;
-    }
-
     .selection-section {
         padding: var(--sl-spacing-medium);
         flex: 1;
+    }
+
+    .panel-footer {
+        padding: var(--sl-spacing-small) var(--sl-spacing-medium);
+        border-top: 1px solid var(--color-border);
+        flex-shrink: 0;
     }
 
     .placeholder {
