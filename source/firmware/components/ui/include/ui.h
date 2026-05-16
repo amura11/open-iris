@@ -1,9 +1,5 @@
 #pragma once
 
-#include "config.h"
+#include "iris_types.h"
 
-/**
- * Render a context's items as a vertical list of lv_label widgets.
- * Clears any existing LVGL objects on the active screen first.
- */
-void ui_render_context(const context_t *ctx);
+void ui_render_state(const iris_state_t *state);

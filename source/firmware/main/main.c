@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "config.h"
 #include "display.h"
@@ -5,36 +9,57 @@
 
 static const char *TAG = "main";
 
-void app_main(void)
+#define CONFIG_PATH "/sdcard/remote.bin"
+
+static esp_err_t load_config_from_file(const char *path, iris_config_t **out_config)
 {
-    // TODO: Mount FATFS on SD card via SDMMC peripheral.
-
-    config_t cfg = {0};
-    ESP_ERROR_CHECK(config_load("/sdcard/remote.bin", &cfg));
-
-    display_init();
-
-    context_t *root = NULL;
-    for (uint16_t i = 0; i < cfg.context_count; i++) {
-        if (cfg.contexts[i].id == cfg.root_context_id) {
-            root = &cfg.contexts[i];
-            break;
-        }
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        ESP_LOGE(TAG, "failed to open %s", path);
+        return ESP_FAIL;
     }
 
-    if (root == NULL) {
-        ESP_LOGE(TAG, "Root context (id=%u) not found", cfg.root_context_id);
-        config_free(&cfg);
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    uint8_t *buffer = malloc((size_t)file_size);
+    if (!buffer) {
+        fclose(f);
+        return ESP_ERR_NO_MEM;
+    }
+
+    size_t bytes_read = fread(buffer, 1, (size_t)file_size, f);
+    fclose(f);
+
+    esp_err_t err = ESP_FAIL;
+    if (bytes_read == (size_t)file_size) {
+        err = iris_config_load_buffer(buffer, bytes_read, out_config);
+    }
+
+    free(buffer);
+    return err;
+}
+
+void app_main(void)
+{
+    // TODO: Mount FATFS on SD card via SDMMC peripheral before reading config.
+
+    iris_config_t *config = NULL;
+    ESP_ERROR_CHECK(load_config_from_file(CONFIG_PATH, &config));
+
+    const iris_state_t *root = iris_config_get_root_state(config);
+    if (!root) {
+        ESP_LOGE(TAG, "root state not found in config");
+        iris_config_free(config);
         return;
     }
 
-    ui_render_context(root);
+    display_init();
+    ui_render_state(root);
 
-    // LVGL task loop
     while (1) {
         display_tick();
         vTaskDelay(pdMS_TO_TICKS(5));
     }
-
-    config_free(&cfg);
 }

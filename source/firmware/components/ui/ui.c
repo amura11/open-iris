@@ -5,16 +5,16 @@
 static const char *TAG = "ui";
 
 // TODO: Implement LVGL widget construction from config data.
-// For milestone 1: render context->items as lv_label widgets in a vertical column.
+// For milestone 1: render state->screen_buttons as lv_label widgets in a vertical column.
 
-void ui_render_context(const context_t *ctx)
+void ui_render_state(const iris_state_t *state)
 {
-    if (!ctx) return;
+    if (!state) return;
 
     lv_obj_clean(lv_scr_act());
 
-    for (uint16_t i = 0; i < ctx->item_count; i++) {
-        ESP_LOGI(TAG, "item[%u]: %s", i, ctx->items[i].label);
+    for (uint16_t i = 0; i < state->screen_button_count; i++) {
+        ESP_LOGI(TAG, "button[%u]: %s", i, state->screen_buttons[i].label);
         // TODO: Create lv_label at correct Y offset instead of just logging.
     }
 }
