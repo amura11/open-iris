@@ -13,6 +13,7 @@
         "skipLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@catalog/*":       ["src/catalog/*"],
             "@components/*":    ["src/components/*"],
             "@layout/*":        ["src/layout/*"],
             "@model/*":         ["src/model/*"],

@@ -5,23 +5,24 @@
     import '@shoelace-style/shoelace/dist/components/switch/switch.js';
     import '@shoelace-style/shoelace/dist/components/input/input.js';
     import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
-    import type { Device } from '@model/devices.ts';
+    import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State } from '@model/state.ts';
     import { untrack } from 'svelte';
     import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
     import ActionPicker from './ActionPicker.svelte';
 
     interface Props {
-        open: boolean;
-        devices: Device[];
-        states: State[];
+        open:          boolean;
+        devices:       Device[];
+        functions:     DeviceFunction[];
+        states:        State[];
         initialSteps?: ActionPickerSelection[];
-        initialName?: string;
-        onConfirm: (result: SequenceEditorConfirmation) => void;
-        onCancel: () => void;
+        initialName?:  string;
+        onConfirm:     (result: SequenceEditorConfirmation) => void;
+        onCancel:      () => void;
     }
 
-    let { open, devices, states, initialSteps, initialName, onConfirm, onCancel }: Props = $props();
+    let { open, devices, functions, states, initialSteps, initialName, onConfirm, onCancel }: Props = $props();
 
     let dialogEl: SlDialog | null = $state(null);
     let steps = $state<ActionPickerSelection[]>([]);
@@ -48,13 +49,14 @@
         if (selection.kind === 'device') {
             return `${selection.device.name} → ${selection.deviceFunction.name}`;
         }
-
         if (selection.kind === 'navigate') {
             const targetState = states.find(s => s.id === selection.targetStateId);
             return `Navigate → ${targetState?.name ?? 'Unknown'}`;
         }
-
-        return `Pause ${selection.durationMs}ms`;
+        if (selection.kind === 'pause') {
+            return `Pause ${selection.durationMs}ms`;
+        }
+        return 'Power off active devices';
     }
 
     function handleAddStep(selection: ActionPickerSelection) {
@@ -63,20 +65,14 @@
     }
 
     function handleMoveUp(index: number) {
-        if (index === 0) {
-            return;
-        }
-
+        if (index === 0) return;
         const updated = [...steps];
         [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
         steps = updated;
     }
 
     function handleMoveDown(index: number) {
-        if (index === steps.length - 1) {
-            return;
-        }
-
+        if (index === steps.length - 1) return;
         const updated = [...steps];
         [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
         steps = updated;
@@ -105,7 +101,6 @@
         if (!justHandled) {
             onCancel();
         }
-
         justHandled = false;
     }
 </script>
@@ -180,7 +175,7 @@
         <!-- ── Right: action picker ───────────────────────────────────────── -->
         <div class="picker-panel flex-1 overflow-y-auto p-m">
             {#key pickerKey}
-                <ActionPicker {devices} {states} onSelect={handleAddStep} />
+                <ActionPicker {devices} {functions} {states} onSelect={handleAddStep} />
             {/key}
         </div>
 

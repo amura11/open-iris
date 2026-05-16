@@ -14,33 +14,41 @@
     }
 
     interface SystemItem {
-        kind: 'navigate' | 'pause';
+        kind: 'navigate' | 'pause' | 'power_off_active';
     }
 
     type PickerItem = DeviceItem | SystemItem;
 
     interface Props {
-        devices: Device[];
-        states: State[];
-        onSelect: (selection: ActionPickerSelection) => void;
+        devices:   Device[];
+        functions: DeviceFunction[];
+        states:    State[];
+        onSelect:  (selection: ActionPickerSelection) => void;
     }
 
-    let { devices, states, onSelect }: Props = $props();
+    let { devices, functions, states, onSelect }: Props = $props();
 
-    let filterQuery = $state('');
+    let filterQuery   = $state('');
     let expandedEditor = $state<'navigate' | 'pause' | null>(null);
 
-    const systemItemLabels: Record<'navigate' | 'pause', string> = {
-        navigate: 'Navigate',
-        pause: 'Pause',
+    const systemItemLabels: Record<'navigate' | 'pause' | 'power_off_active', string> = {
+        navigate:        'Navigate',
+        pause:           'Pause',
+        power_off_active: 'Power off active devices',
     };
 
     let allItems = $derived.by((): PickerItem[] => {
-        const deviceItems: DeviceItem[] = devices.flatMap(device =>
-            device.functions.map(deviceFunction => ({ kind: 'device' as const, device, deviceFunction }))
-        );
+        const deviceItems: DeviceItem[] = functions.flatMap(fn => {
+            const device = devices.find(d => d.id === fn.deviceId);
+            if (!device) return [];
+            return [{ kind: 'device' as const, device, deviceFunction: fn }];
+        });
 
-        const systemItems: SystemItem[] = [{ kind: 'navigate' }, { kind: 'pause' }];
+        const systemItems: SystemItem[] = [
+            { kind: 'navigate' },
+            { kind: 'pause' },
+            { kind: 'power_off_active' },
+        ];
 
         return [...deviceItems, ...systemItems];
     });
@@ -48,41 +56,29 @@
     let visibleItems = $derived.by((): PickerItem[] => {
         const query = filterQuery.trim().toLowerCase();
 
-        if (!query) {
-            return allItems;
-        }
+        if (!query) return allItems;
 
         return allItems.filter(item => {
             if (item.kind === 'device') {
                 return item.deviceFunction.name.toLowerCase().includes(query) ||
                     item.device.name.toLowerCase().includes(query);
             }
-
             return systemItemLabels[item.kind].toLowerCase().includes(query);
         });
     });
 
     function itemLabel(item: PickerItem): string {
-        if (item.kind === 'device') {
-            return item.deviceFunction.name;
-        }
-
+        if (item.kind === 'device') return item.deviceFunction.name;
         return systemItemLabels[item.kind];
     }
 
     function itemSublabel(item: PickerItem): string {
-        if (item.kind === 'device') {
-            return item.device.name;
-        }
-
+        if (item.kind === 'device') return item.device.name;
         return 'System';
     }
 
     function itemKey(item: PickerItem): string {
-        if (item.kind === 'device') {
-            return `device:${item.device.id}:${item.deviceFunction.name}`;
-        }
-
+        if (item.kind === 'device') return `device:${item.device.id}:${item.deviceFunction.id}`;
         return `system:${item.kind}`;
     }
 
@@ -90,6 +86,12 @@
         if (item.kind === 'device') {
             filterQuery = '';
             onSelect({ kind: 'device', device: item.device, deviceFunction: item.deviceFunction });
+            return;
+        }
+
+        if (item.kind === 'power_off_active') {
+            filterQuery = '';
+            onSelect({ kind: 'power_off_active' });
             return;
         }
 

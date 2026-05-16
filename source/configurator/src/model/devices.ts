@@ -1,17 +1,22 @@
-import type { ActionTemplate } from '@model/actions.ts';
+import type { FunctionData } from '@model/actions.ts';
 
-export type DeviceId   = string;
-export type DeviceType = 'ir' | 'rest'; // 'matter' reserved for future
+export type DeviceId        = number;   // uint16
+export type FunctionId      = number;   // uint16
+export type DeviceType      = 'ir' | 'rest' | 'matter';
+export type DevicePowerMode = 'none' | 'toggle' | 'discrete';
 
 export interface DeviceFunction {
-    name: string;
-    template: ActionTemplate;
+    id:       FunctionId;
+    deviceId: DeviceId;
+    name:     string;
+    data:     FunctionData;
 }
 
 export interface Device {
-    id: DeviceId;
-    name: string;
-    manufacturer: string;
-    type: DeviceType;
-    functions: DeviceFunction[];
+    id:                  DeviceId;
+    name:                string;
+    type:                DeviceType;
+    powerMode:           DevicePowerMode;
+    powerOnFunctionId?:  FunctionId;
+    powerOffFunctionId?: FunctionId;
 }

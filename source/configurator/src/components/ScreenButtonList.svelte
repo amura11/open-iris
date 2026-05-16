@@ -21,7 +21,7 @@
     );
 
     function addButton() {
-        const newButton: ScreenButtonConfig = { id: nextButtonId, label: 'New Button', sequenceId: 0 };
+        const newButton: ScreenButtonConfig = { id: nextButtonId, label: 'New Button', assignment: null };
         onUpdate?.({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
     }
 
@@ -33,7 +33,7 @@
         const updatedButtons = stateData.screenButtons.filter(b => b.id !== btn.id);
         const updatedState: State = { ...stateData, screenButtons: updatedButtons };
 
-        if (btn.sequenceId !== 0 && onConfigUpdate) {
+        if (btn.assignment?.kind === 'sequence' && onConfigUpdate) {
             let updated: RemoteConfig = { ...remoteConfig, states: remoteConfig.states.map(s => s.id === updatedState.id ? updatedState : s) };
             onConfigUpdate(garbageCollect(updated));
         } else {

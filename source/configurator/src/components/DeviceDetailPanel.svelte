@@ -1,24 +1,24 @@
 <script lang="ts">
-    import type { Device } from '@model/devices.ts';
+    import type { CatalogDevice, CatalogDeviceFunction } from '@catalog/catalog-source.ts';
 
     interface Props {
-        device: Device;
+        device: CatalogDevice;
     }
 
     let { device }: Props = $props();
 
-    function templateSummary(fn: Device['functions'][number]): string {
-        const t = fn.template;
+    function functionSummary(fn: CatalogDeviceFunction): string {
+        const d = fn.data;
 
-        if (t.type === 'ir_send') {
-            return `${t.protocol.toUpperCase()}  0x${t.code.toString(16).toUpperCase()}`;
+        if (d.type === 'ir') {
+            return `${d.protocol.toUpperCase()}  0x${d.code.toString(16).toUpperCase()}`;
         }
 
-        if (t.type === 'rest_call') {
-            return `${t.method}  ${t.url}`;
+        if (d.type === 'rest') {
+            return `${d.method}  ${d.url}`;
         }
 
-        return t.type;
+        return '';
     }
 </script>
 
@@ -40,7 +40,7 @@
         {#each device.functions as fn (fn.name)}
             <div class="fn-row d-flex justify-between items-baseline px-m py-xs gap-m">
                 <span class="text-s shrink-0">{fn.name}</span>
-                <span class="text-xs font-mono text-muted text-right truncate">{templateSummary(fn)}</span>
+                <span class="text-xs font-mono text-muted text-right truncate">{functionSummary(fn)}</span>
             </div>
         {/each}
     </div>

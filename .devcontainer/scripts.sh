@@ -11,7 +11,7 @@
 #   firmware:flash-monitor           firmware:menuconfig
 #   firmware:size    firmware:set-target [chip]
 #
-#   dev:install      dev:help
+#   dev:install      dev:init      dev:help
 
 # Resolve the repo root from this file's own location, regardless of $PWD.
 OPENIRIS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -111,6 +111,11 @@ alias 'firmware:pick-port'='_firmware_pick_port'
 
 # ── Project-wide ─────────────────────────────────────────────────────────────
 
+_dev_init() {
+    # Must run in the current shell (no subshell) so PATH and venv activation persist.
+    source /opt/esp/idf/export.sh
+}
+
 _dev_install() {
     echo "→ Installing configurator dependencies..."
     (cd "$OPENIRIS_WEB_DIR" && npm install)
@@ -140,6 +145,7 @@ OpenIRis dev commands
   firmware:set-target  Set target chip  (default: esp32)
 
   dev:install          Install all project dependencies
+  dev:init             Source ESP-IDF environment (required before firmware commands)
   dev:help             Show this help
 
 Extra arguments are forwarded to the underlying tool, e.g.:
@@ -150,4 +156,5 @@ EOF
 }
 
 alias 'dev:install'='_dev_install'
+alias 'dev:init'='_dev_init'
 alias 'dev:help'='_dev_help'

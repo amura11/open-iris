@@ -1,18 +1,21 @@
 import type { IRProtocol } from '@model/actions.ts';
 import type { StateType } from '@model/state.ts';
+import type { DeviceType, DevicePowerMode } from '@model/devices.ts';
 import { ButtonCode } from '@model/button-codes.ts';
 
 // ── Format identity ───────────────────────────────────────────────────────────
 
 export const MAGIC   = [0x49, 0x52, 0x49, 0x53] as const; // "IRIS"
-export const VERSION = 0x04;
+export const VERSION = 0x05;
 
 // ── Section type tags ─────────────────────────────────────────────────────────
 
-export const TYPE_STATES   = 0x01;
-export const TYPE_SEQS     = 0x02;
-export const TYPE_IR_CODES = 0x03;
-export const TYPE_METADATA = 0xFF;
+export const TYPE_STATES      = 0x01;
+export const TYPE_SEQS        = 0x02;
+export const TYPE_DEVICES     = 0x03;   // replaces TYPE_IR_CODES
+export const TYPE_FUNCTIONS   = 0x04;
+export const TYPE_DATA_BLOCKS = 0x05;
+export const TYPE_METADATA    = 0xFF;
 
 // ── Layout sizes ──────────────────────────────────────────────────────────────
 
@@ -22,9 +25,22 @@ export const INDEX_ENTRY_SIZE    = 8;  // id(2) + data_offset(4) + data_length(2
 
 // ── Sentinel values ───────────────────────────────────────────────────────────
 
-export const SEQUENCE_ID_NONE  = 0xFFFF;
-export const ICON_ID_NONE      = 0xFFFF;
-export const METADATA_VERSION  = 1;
+export const IRIS_NO_ID       = 0xFFFF;
+export const ICON_ID_NONE     = 0xFFFF;
+export const METADATA_VERSION = 2;
+
+// ── System device / function IDs ──────────────────────────────────────────────
+
+export const SYSTEM_DEVICE_ID           = 0xFFFF;
+export const SYSTEM_FN_NAVIGATE         = 0x0001;
+export const SYSTEM_FN_PAUSE            = 0x0002;
+export const SYSTEM_FN_POWER_OFF_ACTIVE = 0x0003;
+
+// ── Assignment type bytes ─────────────────────────────────────────────────────
+
+export const ASSIGNMENT_NONE     = 0x00;   // screen buttons only
+export const ASSIGNMENT_SEQUENCE = 0x01;
+export const ASSIGNMENT_ACTION   = 0x02;
 
 // ── IR protocol ───────────────────────────────────────────────────────────────
 
@@ -56,6 +72,34 @@ export const BYTE_TO_STATE_TYPE: Record<number, StateType> = {
     0x00: 'root',
     0x01: 'persistent',
     0x02: 'ephemeral',
+};
+
+// ── Device type ───────────────────────────────────────────────────────────────
+
+export const DEVICE_TYPE_BYTE: Record<DeviceType, number> = {
+    ir:     0x01,
+    rest:   0x02,
+    matter: 0x03,
+};
+
+export const BYTE_TO_DEVICE_TYPE: Record<number, DeviceType> = {
+    0x01: 'ir',
+    0x02: 'rest',
+    0x03: 'matter',
+};
+
+// ── Power mode ────────────────────────────────────────────────────────────────
+
+export const POWER_MODE_BYTE: Record<DevicePowerMode, number> = {
+    none:     0x00,
+    toggle:   0x01,
+    discrete: 0x02,
+};
+
+export const BYTE_TO_POWER_MODE: Record<number, DevicePowerMode> = {
+    0x00: 'none',
+    0x01: 'toggle',
+    0x02: 'discrete',
 };
 
 // ── Button code ───────────────────────────────────────────────────────────────

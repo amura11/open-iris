@@ -6,8 +6,8 @@
     import '@shoelace-style/shoelace/dist/components/divider/divider.js';
     import '@shoelace-style/shoelace/dist/components/alert/alert.js';
     import type { ButtonDescriptor, RemoteLayout } from '@layout/layout-types.ts';
-    import type { State, RemoteConfig } from '@model/state.ts';
-    import type { Sequence, SequenceAnnotation, SequenceId } from '@model/actions.ts';
+    import type { State, RemoteConfig, SequenceMetadata } from '@model/state.ts';
+    import type { Sequence, SequenceId } from '@model/actions.ts';
     import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
     import {
         garbageCollect,
@@ -16,7 +16,7 @@
         findButtonsUsingSequence,
         buildSingleActionConfig,
         buildMultiActionConfig,
-        materializeSteps,
+        selectionToAction,
     } from '@model/assignment-utils.ts';
     import ActionPicker from './ActionPicker.svelte';
     import SequenceEditorDialog from './SequenceEditorDialog.svelte';
@@ -31,32 +31,38 @@
 
     let { button, layout, activeState, remoteConfig, onConfigUpdate }: Props = $props();
 
-    let isChangingAssignment = $state(false);
-    let sequenceEditorOpen = $state(false);
+    let isChangingAssignment    = $state(false);
+    let sequenceEditorOpen      = $state(false);
     let sequenceEditorInitialSteps = $state<ActionPickerSelection[]>([]);
-    let sequenceEditorInitialName = $state<string | undefined>(undefined);
-    let isEditingNamedSequence = $state(false);
+    let sequenceEditorInitialName  = $state<string | undefined>(undefined);
+    let isEditingNamedSequence  = $state(false);
 
     let buttonConfig = $derived(
         activeState.physicalButtons.find(b => b.buttonCode === button.buttonCode) ?? null
     );
 
+    let currentAssignment = $derived(buttonConfig?.assignment ?? null);
+
     let currentSequence = $derived(
-        buttonConfig
-            ? remoteConfig.sequences.find(s => s.id === buttonConfig.sequenceId) ?? null
+        currentAssignment?.kind === 'sequence'
+            ? remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId) ?? null
             : null
     );
 
-    let currentAnnotation = $derived(
-        buttonConfig
-            ? remoteConfig.metadata.sequenceAnnotations.find(a => a.sequenceId === buttonConfig.sequenceId) ?? null
+    let currentSequenceMeta = $derived(
+        currentAssignment?.kind === 'sequence'
+            ? remoteConfig.metadata.sequenceMetadata.find(m => m.sequenceId === currentAssignment.sequenceId) ?? null
             : null
     );
 
     let showPicker = $derived(!buttonConfig || isChangingAssignment);
 
+    let isNamed = $derived(
+        currentAssignment?.kind === 'sequence' && currentSequenceMeta?.name !== undefined
+    );
+
     let namedSequences = $derived(
-        remoteConfig.metadata.sequenceAnnotations.filter(a => a.name !== undefined)
+        remoteConfig.metadata.sequenceMetadata.filter(m => m.name !== undefined)
     );
 
     function buttonFriendlyName(buttonCode: string): string {
@@ -64,11 +70,11 @@
     }
 
     function assignSingleAction(selection: ActionPickerSelection) {
-        const previousSequenceId = buttonConfig?.sequenceId ?? null;
+        const previousAssignment = buttonConfig?.assignment ?? null;
 
-        const updated = buildSingleActionConfig(selection, previousSequenceId, remoteConfig, (config, newSequenceId) => {
-            const newButtonConfig = { buttonCode: button.buttonCode, sequenceId: newSequenceId };
-            const updatedPhysicalButtons = previousSequenceId !== null
+        const updated = buildSingleActionConfig(selection, previousAssignment, remoteConfig, (config, newAssignment) => {
+            const newButtonConfig = { buttonCode: button.buttonCode, assignment: newAssignment };
+            const updatedPhysicalButtons = previousAssignment !== null
                 ? activeState.physicalButtons.map(b => b.buttonCode === button.buttonCode ? newButtonConfig : b)
                 : [...activeState.physicalButtons, newButtonConfig];
             const updatedState: State = { ...activeState, physicalButtons: updatedPhysicalButtons };
@@ -80,11 +86,11 @@
     }
 
     function assignMultiActionSequence(result: SequenceEditorConfirmation) {
-        const previousSequenceId = buttonConfig?.sequenceId ?? null;
+        const previousAssignment = buttonConfig?.assignment ?? null;
 
-        const updated = buildMultiActionConfig(result.steps, result.name, previousSequenceId, remoteConfig, (config, newSequenceId) => {
-            const newButtonConfig = { buttonCode: button.buttonCode, sequenceId: newSequenceId };
-            const updatedPhysicalButtons = previousSequenceId !== null
+        const updated = buildMultiActionConfig(result.steps, result.name, previousAssignment, remoteConfig, (config, newAssignment) => {
+            const newButtonConfig = { buttonCode: button.buttonCode, assignment: newAssignment };
+            const updatedPhysicalButtons = previousAssignment !== null
                 ? activeState.physicalButtons.map(b => b.buttonCode === button.buttonCode ? newButtonConfig : b)
                 : [...activeState.physicalButtons, newButtonConfig];
             const updatedState: State = { ...activeState, physicalButtons: updatedPhysicalButtons };
@@ -97,25 +103,22 @@
     }
 
     function updateNamedSequence(result: SequenceEditorConfirmation) {
-        if (!currentSequence) {
-            return;
-        }
+        if (!currentSequence) return;
 
-        const { actions, newIRCodes } = materializeSteps(result.steps, remoteConfig.irCodes);
+        const actions = result.steps.map(selectionToAction);
         const updatedSequence: Sequence = { ...currentSequence, actions };
-        const updatedAnnotation: SequenceAnnotation = {
+        const updatedMeta: SequenceMetadata = {
             sequenceId: currentSequence.id,
-            name: result.name ?? currentAnnotation?.name,
+            name: result.name ?? currentSequenceMeta?.name,
         };
 
         const updatedConfig: RemoteConfig = {
             ...remoteConfig,
             sequences: remoteConfig.sequences.map(s => s.id === currentSequence.id ? updatedSequence : s),
-            irCodes: newIRCodes.length > 0 ? [...remoteConfig.irCodes, ...newIRCodes] : remoteConfig.irCodes,
             metadata: {
                 ...remoteConfig.metadata,
-                sequenceAnnotations: remoteConfig.metadata.sequenceAnnotations.map(a =>
-                    a.sequenceId === currentSequence.id ? updatedAnnotation : a
+                sequenceMetadata: remoteConfig.metadata.sequenceMetadata.map(m =>
+                    m.sequenceId === currentSequence.id ? updatedMeta : m
                 ),
             },
         };
@@ -126,25 +129,27 @@
     }
 
     function assignNamedSequence(sequenceId: SequenceId) {
-        const previousSequenceId = buttonConfig?.sequenceId ?? null;
-        const newButtonConfig = { buttonCode: button.buttonCode, sequenceId };
-        const updatedPhysicalButtons = previousSequenceId !== null
+        const previousAssignment = buttonConfig?.assignment ?? null;
+        const newAssignment = { kind: 'sequence' as const, sequenceId };
+        const newButtonConfig = { buttonCode: button.buttonCode, assignment: newAssignment };
+        const updatedPhysicalButtons = previousAssignment !== null
             ? activeState.physicalButtons.map(b => b.buttonCode === button.buttonCode ? newButtonConfig : b)
             : [...activeState.physicalButtons, newButtonConfig];
         const updatedState: State = { ...activeState, physicalButtons: updatedPhysicalButtons };
         let updated: RemoteConfig = { ...remoteConfig, states: remoteConfig.states.map(s => s.id === activeState.id ? updatedState : s) };
-        if (previousSequenceId !== null) { updated = garbageCollect(updated); }
+        if (previousAssignment?.kind === 'sequence') updated = garbageCollect(updated);
         isChangingAssignment = false;
         onConfigUpdate(updated);
     }
 
     function removeAssignment() {
+        const previousAssignment = buttonConfig?.assignment ?? null;
         const updatedState: State = {
             ...activeState,
             physicalButtons: activeState.physicalButtons.filter(b => b.buttonCode !== button.buttonCode),
         };
         let updated: RemoteConfig = { ...remoteConfig, states: remoteConfig.states.map(s => s.id === activeState.id ? updatedState : s) };
-        updated = garbageCollect(updated);
+        if (previousAssignment?.kind === 'sequence') updated = garbageCollect(updated);
         onConfigUpdate(updated);
     }
 
@@ -156,9 +161,9 @@
     }
 
     function openNamedSequenceEditor() {
-        if (!currentSequence) { return; }
+        if (!currentSequence) return;
         sequenceEditorInitialSteps = reconstructSteps(currentSequence, remoteConfig);
-        sequenceEditorInitialName = currentAnnotation?.name;
+        sequenceEditorInitialName = currentSequenceMeta?.name;
         isEditingNamedSequence = true;
         sequenceEditorOpen = true;
     }
@@ -186,7 +191,8 @@
     {#if showPicker}
         <div class="d-flex flex-col gap-m">
             <ActionPicker
-                devices={remoteConfig.metadata.devices}
+                devices={remoteConfig.devices}
+                functions={remoteConfig.functions}
                 states={remoteConfig.states}
                 onSelect={assignSingleAction}
             />
@@ -204,14 +210,14 @@
                 <div>
                     <div class="text-xs text-muted uppercase tracking-looser mb-xs">Saved sequences</div>
                     <div class="d-flex flex-col gap-2xs">
-                        {#each namedSequences as annotation (annotation.sequenceId)}
+                        {#each namedSequences as meta (meta.sequenceId)}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="saved-sequence-row d-flex items-center justify-between px-xs py-2xs rounded-s cursor-pointer"
-                                onclick={() => assignNamedSequence(annotation.sequenceId)}
+                                onclick={() => assignNamedSequence(meta.sequenceId)}
                             >
-                                <span class="text-s">{annotation.name}</span>
+                                <span class="text-s">{meta.name}</span>
                                 <sl-icon name="arrow-right" class="text-xs text-muted"></sl-icon>
                             </div>
                         {/each}
@@ -228,14 +234,15 @@
             {/if}
         </div>
 
-    {:else if currentSequence && currentAnnotation}
-        {@const isNamed = currentAnnotation.name !== undefined}
-        {@const usedBy = isNamed ? findButtonsUsingSequence(currentSequence.id, remoteConfig, buttonFriendlyName) : []}
+    {:else if currentAssignment}
+        {@const usedBy = isNamed && currentSequence
+            ? findButtonsUsingSequence(currentSequence.id, remoteConfig, buttonFriendlyName)
+            : []}
 
         <div class="d-flex flex-col gap-s">
             <div class="assignment-label d-flex items-center gap-xs px-s py-xs rounded-m">
                 <sl-icon name={isNamed ? 'collection-play' : 'lightning-charge'} class="text-s text-muted shrink-0"></sl-icon>
-                <span class="text-s flex-1 min-w-0 truncate">{assignmentLabel(currentSequence, currentAnnotation, remoteConfig)}</span>
+                <span class="text-s flex-1 min-w-0 truncate">{assignmentLabel(currentAssignment, remoteConfig)}</span>
             </div>
 
             {#if isNamed && usedBy.length > 1}
@@ -264,7 +271,8 @@
 
 <SequenceEditorDialog
     open={sequenceEditorOpen}
-    devices={remoteConfig.metadata.devices}
+    devices={remoteConfig.devices}
+    functions={remoteConfig.functions}
     states={remoteConfig.states}
     initialSteps={sequenceEditorInitialSteps}
     initialName={sequenceEditorInitialName}

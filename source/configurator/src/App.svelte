@@ -16,7 +16,10 @@
     import type { Selection } from '@model/selection.ts';
     import { downloadBin } from '@serialization/writer.ts';
     import { deserialize } from '@serialization/reader.ts';
-    import type { Device } from '@model/devices.ts';
+    import type { Device, DeviceId, DeviceFunction } from '@model/devices.ts';
+    import type { DeviceMetadata, FunctionMetadata } from '@model/state.ts';
+    import { consumeId } from '@model/assignment-utils.ts';
+    import type { CatalogDevice } from '@catalog/catalog-source.ts';
     import RemotePreview from '@components/RemotePreview.svelte';
     import InspectorPanel from '@components/InspectorPanel.svelte';
     import DeviceDiscoveryDialog from '@components/DeviceDiscoveryDialog.svelte';
@@ -33,10 +36,19 @@
             onActivate: null,
             onDeactivate: null,
             buttonFallback: false,
+            activeDevices: [],
         }],
         sequences: [],
-        irCodes:  [],
-        metadata: { devices: [], sequenceAnnotations: [], extra: {} },
+        devices:    [],
+        functions:  [],
+        dataBlocks: [],
+        metadata: {
+            idCounters:       { device: 0, function: 0, sequence: 0, state: 1, dataBlock: 0 },
+            deviceMetadata:   [],
+            functionMetadata: [],
+            sequenceMetadata: [],
+            extra:            {},
+        },
     });
     let deviceDialogOpen = $state(false);
     let loadError   = $state<string | null>(null);
@@ -110,7 +122,7 @@
     }
 
     function handleStateAdd() {
-        const newId: number = Math.max(...remoteConfig.states.map(s => s.id)) + 1;
+        const [newId, configWithId] = consumeId(remoteConfig, 'state');
         const newState: State = {
             id: newId,
             name: 'New State',
@@ -120,8 +132,9 @@
             onActivate: null,
             onDeactivate: null,
             buttonFallback: false,
+            activeDevices: [],
         };
-        remoteConfig = { ...remoteConfig, states: [...remoteConfig.states, newState] };
+        remoteConfig = { ...configWithId, states: [...configWithId.states, newState] };
         selectedStateId = newId;
         selection = null;
         nameInputFocusTrigger++;
@@ -171,25 +184,62 @@
             : remoteConfig.rootStateId;
     }
 
-    function handleDeviceAdd(device: Device) {
-        if (remoteConfig.metadata.devices.some(d => d.id === device.id)) {
+    function handleDeviceAdd(catalogDevice: CatalogDevice) {
+        if (remoteConfig.metadata.deviceMetadata.some(m => m.sourceId === catalogDevice.sourceId)) {
             return;
         }
+
+        let config = remoteConfig;
+        const [deviceId, afterDevice] = consumeId(config, 'device');
+        config = afterDevice;
+
+        const newDevice: Device = {
+            id:       deviceId,
+            name:     catalogDevice.name,
+            type:     catalogDevice.type,
+            powerMode: 'none',
+        };
+
+        const newFunctions: DeviceFunction[] = [];
+        const newFunctionMeta: FunctionMetadata[] = [];
+
+        for (const catalogFn of catalogDevice.functions) {
+            const [fnId, afterFn] = consumeId(config, 'function');
+            config = afterFn;
+            newFunctions.push({ id: fnId, deviceId, name: catalogFn.name, data: catalogFn.data });
+            newFunctionMeta.push({ id: fnId, sourceId: catalogFn.sourceId });
+        }
+
+        const newDeviceMeta: DeviceMetadata = {
+            id:           deviceId,
+            manufacturer: catalogDevice.manufacturer,
+            sourceId:     catalogDevice.sourceId,
+        };
+
         remoteConfig = {
-            ...remoteConfig,
+            ...config,
+            devices:   [...config.devices,   newDevice],
+            functions: [...config.functions,  ...newFunctions],
             metadata: {
-                ...remoteConfig.metadata,
-                devices: [...remoteConfig.metadata.devices, device],
+                ...config.metadata,
+                deviceMetadata:   [...config.metadata.deviceMetadata,   newDeviceMeta],
+                functionMetadata: [...config.metadata.functionMetadata, ...newFunctionMeta],
             },
         };
     }
 
-    function handleDeviceRemove(deviceId: string) {
+    function handleDeviceRemove(deviceId: DeviceId) {
+        const removedFunctionIds = new Set(
+            remoteConfig.functions.filter(f => f.deviceId === deviceId).map(f => f.id)
+        );
         remoteConfig = {
             ...remoteConfig,
+            devices:   remoteConfig.devices.filter(d => d.id !== deviceId),
+            functions: remoteConfig.functions.filter(f => f.deviceId !== deviceId),
             metadata: {
                 ...remoteConfig.metadata,
-                devices: remoteConfig.metadata.devices.filter(d => d.id !== deviceId),
+                deviceMetadata:   remoteConfig.metadata.deviceMetadata.filter(m => m.id !== deviceId),
+                functionMetadata: remoteConfig.metadata.functionMetadata.filter(m => !removedFunctionIds.has(m.id)),
             },
         };
     }
@@ -222,9 +272,9 @@
             <sl-button size="small" onclick={() => { deviceDialogOpen = true; }}>
                 <sl-icon slot="prefix" name="cpu"></sl-icon>
                 Devices
-                {#if remoteConfig.metadata.devices.length > 0}
+                {#if remoteConfig.devices.length > 0}
                     <sl-badge slot="suffix" variant="primary" pill>
-                        {remoteConfig.metadata.devices.length}
+                        {remoteConfig.devices.length}
                     </sl-badge>
                 {/if}
             </sl-button>
@@ -345,7 +395,8 @@
 
     <DeviceDiscoveryDialog
         bind:open={deviceDialogOpen}
-        installedDevices={remoteConfig.metadata.devices}
+        installedDevices={remoteConfig.devices}
+        installedMeta={remoteConfig.metadata.deviceMetadata}
         onAdd={handleDeviceAdd}
         onRemove={handleDeviceRemove}
     />

@@ -8,26 +8,28 @@
     import '@shoelace-style/shoelace/dist/components/button/button.js';
     import '@shoelace-style/shoelace/dist/components/icon/icon.js';
     import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
-    import type { Device } from '@model/devices.ts';
-    import { HardcodedCatalogSource } from '@catalog/catalog-source.ts';
+    import type { Device, DeviceId } from '@model/devices.ts';
+    import type { DeviceMetadata } from '@model/state.ts';
+    import { HardcodedCatalogSource, type CatalogDevice } from '@catalog/catalog-source.ts';
     import DeviceDetailPanel from './DeviceDetailPanel.svelte';
 
     interface Props {
-        open: boolean;
+        open:             boolean;
         installedDevices: Device[];
-        onAdd:    (device: Device) => void;
-        onRemove: (deviceId: string) => void;
+        installedMeta:    DeviceMetadata[];
+        onAdd:            (device: CatalogDevice) => void;
+        onRemove:         (deviceId: DeviceId) => void;
     }
 
-    let { open = $bindable(false), installedDevices, onAdd, onRemove }: Props = $props();
+    let { open = $bindable(false), installedDevices, installedMeta, onAdd, onRemove }: Props = $props();
 
     const catalog = new HardcodedCatalogSource();
 
     let dialogEl: SlDialog | null = $state(null);
     let browseQuery    = $state('');
     let installedQuery = $state('');
-    let selectedDevice = $state<Device | null>(null);
-    let catalogResults = $state<Device[]>([]);
+    let selectedDevice = $state<CatalogDevice | null>(null);
+    let catalogResults = $state<CatalogDevice[]>([]);
 
     $effect(() => {
         if (open) {
@@ -38,32 +40,46 @@
     });
 
     $effect(() => {
-        catalog.search(browseQuery).then((results: Device[]) => { catalogResults = results; });
+        catalog.search(browseQuery).then((results: CatalogDevice[]) => { catalogResults = results; });
     });
 
-    const filteredInstalled = $derived(
-        installedDevices.filter(d => {
-            const q = installedQuery.trim().toLowerCase();
-            return !q ||
-                d.name.toLowerCase().includes(q) ||
-                d.manufacturer.toLowerCase().includes(q) ||
-                d.type.toLowerCase().includes(q);
+    interface InstalledView {
+        device:       Device;
+        manufacturer: string;
+        sourceId:     string | undefined;
+    }
+
+    let installedViews = $derived<InstalledView[]>(
+        installedDevices.map(device => {
+            const meta = installedMeta.find(m => m.id === device.id);
+            return { device, manufacturer: meta?.manufacturer ?? '', sourceId: meta?.sourceId };
         })
     );
 
-    function isInstalled(deviceId: string): boolean {
-        return installedDevices.some(d => d.id === deviceId);
+    const filteredInstalled = $derived(
+        installedViews.filter(v => {
+            const q = installedQuery.trim().toLowerCase();
+            return !q ||
+                v.device.name.toLowerCase().includes(q) ||
+                v.manufacturer.toLowerCase().includes(q) ||
+                v.device.type.toLowerCase().includes(q);
+        })
+    );
+
+    function isInstalled(sourceId: string): boolean {
+        return installedMeta.some(m => m.sourceId === sourceId);
     }
 
-    function handleAdd(device: Device) {
+    function handleAdd(device: CatalogDevice) {
         onAdd(device);
         selectedDevice = device;
     }
 
-    function handleRemove(deviceId: string) {
+    function handleRemove(deviceId: DeviceId) {
+        const removedMeta = installedMeta.find(m => m.id === deviceId);
         onRemove(deviceId);
 
-        if (selectedDevice?.id === deviceId) {
+        if (removedMeta?.sourceId && selectedDevice?.sourceId === removedMeta.sourceId) {
             selectedDevice = null;
         }
     }
@@ -107,13 +123,13 @@
                             </sl-input>
                         </div>
                         <div class="flex-1 overflow-y-auto">
-                            {#each catalogResults as device (device.id)}
-                                {@const installed = isInstalled(device.id)}
+                            {#each catalogResults as device (device.sourceId)}
+                                {@const installed = isInstalled(device.sourceId)}
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <div
                                     class="device-row d-flex items-center justify-between px-s py-xs gap-xs cursor-pointer border-bottom"
-                                    class:selected={selectedDevice?.id === device.id}
+                                    class:selected={selectedDevice?.sourceId === device.sourceId}
                                     onclick={() => { selectedDevice = device; }}
                                 >
                                     <div class="d-flex flex-col gap-2xs min-w-0">
@@ -158,30 +174,27 @@
                             </sl-input>
                         </div>
                         <div class="flex-1 overflow-y-auto">
-                            {#each filteredInstalled as device (device.id)}
+                            {#each filteredInstalled as view (view.device.id)}
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <div
-                                    class="device-row d-flex items-center justify-between px-s py-xs gap-xs cursor-pointer border-bottom"
-                                    class:selected={selectedDevice?.id === device.id}
-                                    onclick={() => { selectedDevice = device; }}
+                                    class="device-row d-flex items-center justify-between px-s py-xs gap-xs border-bottom"
                                 >
                                     <div class="d-flex flex-col gap-2xs min-w-0">
-                                        <span class="text-s font-semibold truncate">{device.name}</span>
+                                        <span class="text-s font-semibold truncate">{view.device.name}</span>
                                         <span class="d-flex items-center gap-2xs text-xs text-muted">
-                                            {device.manufacturer}
+                                            {view.manufacturer}
                                             <sl-badge
-                                                variant={device.type === 'ir' ? 'primary' : 'warning'}
+                                                variant={view.device.type === 'ir' ? 'primary' : 'warning'}
                                                 pill
-                                            >{device.type.toUpperCase()}</sl-badge>
-                                            · {device.functions.length} fn
+                                            >{view.device.type.toUpperCase()}</sl-badge>
                                         </span>
                                     </div>
                                     <sl-button
                                         size="small"
                                         variant="danger"
                                         outline
-                                        onclick={(e: Event) => { e.stopPropagation(); handleRemove(device.id); }}
+                                        onclick={(e: Event) => { e.stopPropagation(); handleRemove(view.device.id); }}
                                     >Remove</sl-button>
                                 </div>
                             {:else}
