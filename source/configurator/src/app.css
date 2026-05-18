@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+@import '@skeletonlabs/skeleton';
+@import '@fontsource/inter';
+@import './styles/theme-open-iris.css';

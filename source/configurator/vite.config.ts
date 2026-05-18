@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
 import { cpSync, existsSync, readFileSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
@@ -37,7 +38,7 @@ function layoutsPlugin() {
 }
 
 export default defineConfig({
-    plugins: [svelte(), layoutsPlugin()],
+    plugins: [tailwindcss(), svelte(), layoutsPlugin()],
     resolve: {
         alias: {
             '@catalog':       fileURLToPath(new URL('./src/catalog',       import.meta.url)),

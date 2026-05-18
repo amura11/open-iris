@@ -1,0 +1,327 @@
+/*
+ * OpenIRis — Skeleton v4 Theme
+ *
+ * Inspired by the iris flower: deep violet petals, lighter violet inner
+ * markings, warm gold stamen. Industrial/oscilloscope dark aesthetic.
+ *
+ * Usage:
+ *   1. Place this file at your project root: openIRis-theme.css
+ *   2. In your global stylesheet (app.css), after the Skeleton import:
+ *        @import '../openIRis-theme.css';
+ *   3. On your <html> element:
+ *        <html data-theme="openIRis">
+ *
+ * Font setup (in app.css, before this import):
+ *   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+ *   Or install via Fontsource: npm install @fontsource/inter
+ *   Then: @import '@fontsource/inter';
+ *
+ * Colors are defined in OKLCH as recommended by Skeleton v3/v4.
+ * Light/dark color pairings use the CSS light-dark() function.
+ * Shade 500 is the brand tone — balanced at the midpoint.
+ *
+ * Color roles:
+ *   primary   — deep/light violet  (main brand, interactive)
+ *   secondary — mid violet         (wordmark IR letters, secondary actions)
+ *   tertiary  — stamen gold        (active states, IR emitter dot — use sparingly)
+ *   success   — muted teal         (functional only)
+ *   warning   — muted amber        (functional only)
+ *   error     — muted rose         (functional only)
+ *   surface   — plum-tinted neutrals (backgrounds, cards, borders)
+ */
+
+[data-theme='open-iris'] {
+
+  /* ── Spacing & type scale ── */
+  --spacing:      0.25rem;
+  --text-scaling: 1.067;   /* minor second — subtle, technical feel */
+
+  /* ────────────────────────────────────────────────────────────
+   * PRIMARY — Violet
+   * Light mode 500: #5c3d8f  oklch(37.5% 0.160 295)
+   * Dark mode  500: #a07ee0  oklch(62.5% 0.155 295)
+   * Skeleton uses 500 as the brand tone; lighter shades for dark mode
+   * backgrounds, darker shades for dark mode surfaces.
+   * ──────────────────────────────────────────────────────────── */
+  --color-primary-50:             oklch(97%   0.022 295);
+  --color-primary-100:            oklch(93%   0.042 295);
+  --color-primary-200:            oklch(87%   0.072 295);
+  --color-primary-300:            oklch(79%   0.105 295);
+  --color-primary-400:            oklch(71%   0.132 295);
+  --color-primary-500:            oklch(62.5% 0.155 295);
+  --color-primary-600:            oklch(53%   0.158 295);
+  --color-primary-700:            oklch(44%   0.150 295);
+  --color-primary-800:            oklch(34%   0.135 295);
+  --color-primary-900:            oklch(25%   0.112 295);
+  --color-primary-950:            oklch(17%   0.085 295);
+
+  /* Contrast tones — text rendered ON a primary-N background */
+  --color-primary-contrast-50:    oklch(17%   0.085 295);
+  --color-primary-contrast-100:   oklch(17%   0.085 295);
+  --color-primary-contrast-200:   oklch(17%   0.085 295);
+  --color-primary-contrast-300:   oklch(17%   0.085 295);
+  --color-primary-contrast-400:   oklch(99%   0.005 295);
+  --color-primary-contrast-500:   oklch(99%   0.005 295);
+  --color-primary-contrast-600:   oklch(99%   0.005 295);
+  --color-primary-contrast-700:   oklch(99%   0.005 295);
+  --color-primary-contrast-800:   oklch(99%   0.005 295);
+  --color-primary-contrast-900:   oklch(99%   0.005 295);
+  --color-primary-contrast-950:   oklch(99%   0.005 295);
+
+  /* ────────────────────────────────────────────────────────────
+   * SECONDARY — Mid violet (wordmark IR letters, secondary actions)
+   * Light 500: #7b52b8  oklch(46% 0.162 295)
+   * Dark  400: #c4a8f0  oklch(75% 0.118 295)
+   * ──────────────────────────────────────────────────────────── */
+  --color-secondary-50:           oklch(97%   0.018 295);
+  --color-secondary-100:          oklch(94%   0.035 295);
+  --color-secondary-200:          oklch(89%   0.060 295);
+  --color-secondary-300:          oklch(83%   0.088 295);
+  --color-secondary-400:          oklch(75%   0.118 295);
+  --color-secondary-500:          oklch(64%   0.148 295);
+  --color-secondary-600:          oklch(54%   0.158 295);
+  --color-secondary-700:          oklch(44%   0.148 295);
+  --color-secondary-800:          oklch(34%   0.128 295);
+  --color-secondary-900:          oklch(25%   0.102 295);
+  --color-secondary-950:          oklch(17%   0.075 295);
+
+  --color-secondary-contrast-50:  oklch(17%   0.075 295);
+  --color-secondary-contrast-100: oklch(17%   0.075 295);
+  --color-secondary-contrast-200: oklch(17%   0.075 295);
+  --color-secondary-contrast-300: oklch(17%   0.075 295);
+  --color-secondary-contrast-400: oklch(99%   0.005 295);
+  --color-secondary-contrast-500: oklch(99%   0.005 295);
+  --color-secondary-contrast-600: oklch(99%   0.005 295);
+  --color-secondary-contrast-700: oklch(99%   0.005 295);
+  --color-secondary-contrast-800: oklch(99%   0.005 295);
+  --color-secondary-contrast-900: oklch(99%   0.005 295);
+  --color-secondary-contrast-950: oklch(99%   0.005 295);
+
+  /* ────────────────────────────────────────────────────────────
+   * TERTIARY — Stamen gold
+   * Used sparingly: active state badges, IR emitter dot, focus accents.
+   * Light 500: #b8922a  oklch(63% 0.138 76)
+   * Dark  400: #e8c14a  oklch(80% 0.158 82)
+   * ──────────────────────────────────────────────────────────── */
+  --color-tertiary-50:            oklch(97%   0.022 80);
+  --color-tertiary-100:           oklch(93%   0.050 80);
+  --color-tertiary-200:           oklch(88%   0.088 80);
+  --color-tertiary-300:           oklch(83%   0.128 80);
+  --color-tertiary-400:           oklch(77%   0.152 80);
+  --color-tertiary-500:           oklch(70%   0.158 78);
+  --color-tertiary-600:           oklch(60%   0.148 76);
+  --color-tertiary-700:           oklch(50%   0.132 75);
+  --color-tertiary-800:           oklch(39%   0.108 74);
+  --color-tertiary-900:           oklch(29%   0.080 74);
+  --color-tertiary-950:           oklch(20%   0.055 74);
+
+  --color-tertiary-contrast-50:   oklch(20%   0.055 74);
+  --color-tertiary-contrast-100:  oklch(20%   0.055 74);
+  --color-tertiary-contrast-200:  oklch(20%   0.055 74);
+  --color-tertiary-contrast-300:  oklch(20%   0.055 74);
+  --color-tertiary-contrast-400:  oklch(15%   0.040 74);
+  --color-tertiary-contrast-500:  oklch(15%   0.040 74);
+  --color-tertiary-contrast-600:  oklch(99%   0.005 80);
+  --color-tertiary-contrast-700:  oklch(99%   0.005 80);
+  --color-tertiary-contrast-800:  oklch(99%   0.005 80);
+  --color-tertiary-contrast-900:  oklch(99%   0.005 80);
+  --color-tertiary-contrast-950:  oklch(99%   0.005 80);
+
+  /* ────────────────────────────────────────────────────────────
+   * SUCCESS — Muted teal (functional, not brand)
+   * ──────────────────────────────────────────────────────────── */
+  --color-success-50:             oklch(97%   0.025 168);
+  --color-success-100:            oklch(92%   0.050 168);
+  --color-success-200:            oklch(85%   0.085 168);
+  --color-success-300:            oklch(76%   0.115 168);
+  --color-success-400:            oklch(66%   0.138 168);
+  --color-success-500:            oklch(56%   0.148 168);
+  --color-success-600:            oklch(47%   0.140 168);
+  --color-success-700:            oklch(38%   0.125 168);
+  --color-success-800:            oklch(29%   0.100 168);
+  --color-success-900:            oklch(21%   0.072 168);
+  --color-success-950:            oklch(14%   0.048 168);
+
+  --color-success-contrast-50:    oklch(14%   0.048 168);
+  --color-success-contrast-100:   oklch(14%   0.048 168);
+  --color-success-contrast-200:   oklch(14%   0.048 168);
+  --color-success-contrast-300:   oklch(14%   0.048 168);
+  --color-success-contrast-400:   oklch(99%   0.005 168);
+  --color-success-contrast-500:   oklch(99%   0.005 168);
+  --color-success-contrast-600:   oklch(99%   0.005 168);
+  --color-success-contrast-700:   oklch(99%   0.005 168);
+  --color-success-contrast-800:   oklch(99%   0.005 168);
+  --color-success-contrast-900:   oklch(99%   0.005 168);
+  --color-success-contrast-950:   oklch(99%   0.005 168);
+
+  /* ────────────────────────────────────────────────────────────
+   * WARNING — Muted amber (functional)
+   * ──────────────────────────────────────────────────────────── */
+  --color-warning-50:             oklch(97%   0.025 65);
+  --color-warning-100:            oklch(93%   0.055 65);
+  --color-warning-200:            oklch(87%   0.095 65);
+  --color-warning-300:            oklch(80%   0.135 65);
+  --color-warning-400:            oklch(73%   0.158 65);
+  --color-warning-500:            oklch(65%   0.162 65);
+  --color-warning-600:            oklch(55%   0.148 64);
+  --color-warning-700:            oklch(45%   0.130 63);
+  --color-warning-800:            oklch(35%   0.105 62);
+  --color-warning-900:            oklch(26%   0.078 62);
+  --color-warning-950:            oklch(18%   0.052 62);
+
+  --color-warning-contrast-50:    oklch(18%   0.052 62);
+  --color-warning-contrast-100:   oklch(18%   0.052 62);
+  --color-warning-contrast-200:   oklch(18%   0.052 62);
+  --color-warning-contrast-300:   oklch(18%   0.052 62);
+  --color-warning-contrast-400:   oklch(12%   0.035 62);
+  --color-warning-contrast-500:   oklch(12%   0.035 62);
+  --color-warning-contrast-600:   oklch(99%   0.005 65);
+  --color-warning-contrast-700:   oklch(99%   0.005 65);
+  --color-warning-contrast-800:   oklch(99%   0.005 65);
+  --color-warning-contrast-900:   oklch(99%   0.005 65);
+  --color-warning-contrast-950:   oklch(99%   0.005 65);
+
+  /* ────────────────────────────────────────────────────────────
+   * ERROR — Muted rose (functional)
+   * ──────────────────────────────────────────────────────────── */
+  --color-error-50:               oklch(97%   0.018 10);
+  --color-error-100:              oklch(92%   0.040 10);
+  --color-error-200:              oklch(85%   0.075 10);
+  --color-error-300:              oklch(76%   0.112 10);
+  --color-error-400:              oklch(66%   0.145 10);
+  --color-error-500:              oklch(57%   0.165 10);
+  --color-error-600:              oklch(48%   0.158 10);
+  --color-error-700:              oklch(39%   0.140 10);
+  --color-error-800:              oklch(30%   0.112 10);
+  --color-error-900:              oklch(22%   0.080 10);
+  --color-error-950:              oklch(15%   0.052 10);
+
+  --color-error-contrast-50:      oklch(15%   0.052 10);
+  --color-error-contrast-100:     oklch(15%   0.052 10);
+  --color-error-contrast-200:     oklch(15%   0.052 10);
+  --color-error-contrast-300:     oklch(15%   0.052 10);
+  --color-error-contrast-400:     oklch(99%   0.005 10);
+  --color-error-contrast-500:     oklch(99%   0.005 10);
+  --color-error-contrast-600:     oklch(99%   0.005 10);
+  --color-error-contrast-700:     oklch(99%   0.005 10);
+  --color-error-contrast-800:     oklch(99%   0.005 10);
+  --color-error-contrast-900:     oklch(99%   0.005 10);
+  --color-error-contrast-950:     oklch(99%   0.005 10);
+
+  /* ────────────────────────────────────────────────────────────
+   * SURFACE — Plum-tinted neutrals
+   *
+   * Light mode: soft lavender-white (f0ecfa background, ffffff cards)
+   * Dark mode:  near-black plum (0e0c12 background, 1e1630 cards)
+   *
+   * The purple undertone in the dark surfaces is intentional —
+   * it keeps the brand character in the shadows without being loud.
+   * ──────────────────────────────────────────────────────────── */
+  --color-surface-50:             oklch(97%   0.015 295);  /* light bg: ~#f0ecfa */
+  --color-surface-100:            oklch(94%   0.018 295);
+  --color-surface-200:            oklch(90%   0.020 295);
+  --color-surface-300:            oklch(82%   0.022 295);
+  --color-surface-400:            oklch(70%   0.025 295);
+  --color-surface-500:            oklch(55%   0.030 295);
+  --color-surface-600:            oklch(40%   0.035 295);
+  --color-surface-700:            oklch(28%   0.038 295);  /* dark surface: ~#1e1630 */
+  --color-surface-800:            oklch(22%   0.035 295);
+  --color-surface-900:            oklch(16%   0.030 295);
+  --color-surface-950:            oklch(10%   0.025 295);  /* dark bg: ~#0e0c12 */
+
+  --color-surface-contrast-50:    oklch(10%   0.025 295);
+  --color-surface-contrast-100:   oklch(10%   0.025 295);
+  --color-surface-contrast-200:   oklch(10%   0.025 295);
+  --color-surface-contrast-300:   oklch(10%   0.025 295);
+  --color-surface-contrast-400:   oklch(99%   0.005 295);
+  --color-surface-contrast-500:   oklch(99%   0.005 295);
+  --color-surface-contrast-600:   oklch(99%   0.005 295);
+  --color-surface-contrast-700:   oklch(99%   0.005 295);
+  --color-surface-contrast-800:   oklch(99%   0.005 295);
+  --color-surface-contrast-900:   oklch(99%   0.005 295);
+  --color-surface-contrast-950:   oklch(99%   0.005 295);
+
+  /* ────────────────────────────────────────────────────────────
+   * TYPOGRAPHY
+   *
+   * Base/UI: Inter (sans-serif) — clean and highly legible
+   * Headings: Inter medium — consistent with base, slightly heavier
+   * Monospace: Courier New — reserved for wordmark, tagline,
+   *            and code/data values (IR hex codes, device IDs)
+   * ──────────────────────────────────────────────────────────── */
+
+  /* Base (body, labels, UI text) */
+  --base-font-color:              var(--color-surface-950);
+  --base-font-color-dark:         var(--color-surface-50);
+  --base-font-family:             'Inter', system-ui, sans-serif;
+  --base-font-size:               inherit;
+  --base-line-height:             1.6;
+  --base-font-weight:             400;
+  --base-font-style:              normal;
+  --base-letter-spacing:          0em;
+
+  /* Headings */
+  --heading-font-color:           inherit;
+  --heading-font-color-dark:      inherit;
+  --heading-font-family:          'Inter', system-ui, sans-serif;
+  --heading-font-weight:          500;
+  --heading-font-style:           normal;
+  --heading-letter-spacing:       -0.01em;
+
+  /* Anchors */
+  --anchor-font-color:            var(--color-primary-600);
+  --anchor-font-color-dark:       var(--color-primary-400);
+  --anchor-font-family:           inherit;
+  --anchor-font-size:             inherit;
+  --anchor-line-height:           inherit;
+  --anchor-font-weight:           inherit;
+  --anchor-font-style:            inherit;
+  --anchor-letter-spacing:        inherit;
+  --anchor-text-decoration:       none;
+  --anchor-text-decoration-hover: underline;
+  --anchor-text-decoration-active: none;
+  --anchor-text-decoration-focus: none;
+
+  /* ────────────────────────────────────────────────────────────
+   * RADIUS
+   *
+   * Slightly restrained — industrial/technical feel, not pill-heavy.
+   * ──────────────────────────────────────────────────────────── */
+  --radius-base:      4px;   /* inputs, badges, small elements */
+  --radius-container: 8px;   /* cards, panels, modals */
+
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * BODY BACKGROUND
+ *
+ * Light: soft lavender (surface-50)
+ * Dark:  near-black plum (surface-950)
+ *
+ * A very subtle radial glow from the primary violet in dark mode
+ * reinforces the brand in the ambient background without being loud.
+ * ──────────────────────────────────────────────────────────────── */
+[data-theme='open-iris'] body {
+  --body-background-color:      var(--color-surface-50);
+  --body-background-color-dark: var(--color-surface-950);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme='open-iris'] body {
+    background-image:
+      radial-gradient(
+        at 80% 10%,
+        color-mix(in oklab, var(--color-primary-500) 6%, transparent) 0px,
+        transparent 50%
+      ),
+      radial-gradient(
+        at 20% 90%,
+        color-mix(in oklab, var(--color-secondary-500) 4%, transparent) 0px,
+        transparent 40%
+      );
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+}
