@@ -1,13 +1,36 @@
+# ── Temporary / scratch ─────────────────────────────────────────────────────
 temp/
 
-# Configurator
+# ── OS metadata ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Editor temp files ────────────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Environment variables ─────────────────────────────────────────────────────
+.env
+.env.*
+
+# ── Configurator ─────────────────────────────────────────────────────────────
 source/configurator/node_modules/
 source/configurator/dist/
-source/configurator/.svelte-kit/
 
-# Firmware
+# ── Firmware ──────────────────────────────────────────────────────────────────
 source/firmware/build/
 source/firmware/sdkconfig
 source/firmware/sdkconfig.old
 source/firmware/managed_components/
 source/firmware/**/.cache/
+
+# ── Python (used by ESP-IDF tooling) ─────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
