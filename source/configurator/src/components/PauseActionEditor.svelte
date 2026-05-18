@@ -1,7 +1,4 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/input/input.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-
     interface Props {
         onConfirm: (durationMs: number) => void;
         onCancel: () => void;
@@ -17,22 +14,24 @@
     }
 </script>
 
-<div class="d-flex flex-col gap-xs">
-    <sl-input
-        type="number"
-        size="small"
-        label="Duration (ms)"
-        min="1"
-        max="65535"
-        value={String(durationMs)}
-        oninput={(e: Event) => { durationMs = Number((e.target as HTMLInputElement).value); }}
-    ></sl-input>
-    <div class="d-flex gap-xs justify-end">
+<div class="flex flex-col gap-2">
+    <label class="label">
+        <span class="label-text">Duration (ms)</span>
+        <input
+            class="input"
+            type="number"
+            min="1"
+            max="65535"
+            value={String(durationMs)}
+            oninput={(e: Event) => { durationMs = Number((e.target as HTMLInputElement).value); }}
+        />
+    </label>
+    <div class="flex gap-2 justify-end">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button size="small" variant="text" onclick={onCancel}>Cancel</sl-button>
+        <button class="btn btn-sm hover:preset-tonal" onclick={onCancel}>Cancel</button>
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button size="small" variant="primary" onclick={handleConfirm}>Confirm</sl-button>
+        <button class="btn btn-sm preset-filled-primary-500" onclick={handleConfirm}>Confirm</button>
     </div>
 </div>

@@ -350,8 +350,8 @@
         /* Subtle radial gradient so the canvas feels distinct from the page bg */
         background: radial-gradient(
             ellipse at 50% 40%,
-            color-mix(in srgb, var(--color-primary) 5%, var(--color-background)),
-            var(--color-background) 70%
+            color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 5%, light-dark(var(--color-surface-50), var(--color-surface-900))),
+            light-dark(var(--color-surface-50), var(--color-surface-900)) 70%
         );
     }
 
@@ -375,23 +375,23 @@
 
     .hud {
         position: absolute;
-        bottom: var(--sl-spacing-medium);
-        right: var(--sl-spacing-medium);
+        bottom: 1rem;
+        right: 1rem;
         display: flex;
         align-items: center;
         gap: 0;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--sl-border-radius-medium);
-        backdrop-filter: var(--surface-glass);
-        font-family: var(--font-mono);
-        font-size: var(--sl-font-size-x-small);
-        color: var(--color-text-secondary);
+        background: color-mix(in oklab, light-dark(var(--color-surface-100), var(--color-surface-800)) 80%, transparent);
+        border: 1px solid color-mix(in oklab, var(--color-surface-500) 40%, transparent);
+        border-radius: var(--radius-base);
+        backdrop-filter: blur(12px);
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
         overflow: hidden;
     }
 
     .hud-zoom {
-        padding: var(--sl-spacing-2x-small) var(--sl-spacing-small);
+        padding: 0.25rem 0.75rem;
         min-width: 4ch;
         text-align: right;
     }
@@ -399,30 +399,30 @@
     .hud-divider {
         width: 1px;
         align-self: stretch;
-        background: var(--color-border);
+        background: color-mix(in oklab, var(--color-surface-500) 40%, transparent);
     }
 
     .hud-btn {
         all: unset;
-        padding: var(--sl-spacing-2x-small) var(--sl-spacing-small);
-        color: var(--color-primary);
+        padding: 0.25rem 0.75rem;
+        color: light-dark(var(--color-primary-600), var(--color-primary-400));
         cursor: pointer;
-        font-family: var(--font-mono);
-        font-size: var(--sl-font-size-x-small);
+        font-family: monospace;
+        font-size: 0.75rem;
     }
 
-    .hud-btn:hover { color: var(--color-text-primary); }
+    .hud-btn:hover { color: light-dark(var(--color-surface-900), var(--color-surface-100)); }
 
     /* ── Hint text (bottom-left) ────────────────────────────────────────── */
 
     .hint {
         position: absolute;
-        bottom: var(--sl-spacing-medium);
-        left: var(--sl-spacing-medium);
+        bottom: 1rem;
+        left: 1rem;
         margin: 0;
-        font-size: var(--sl-font-size-2x-small);
-        font-family: var(--font-mono);
-        color: var(--color-text-secondary);
+        font-size: 0.625rem;
+        font-family: monospace;
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
         opacity: 0.5;
         pointer-events: none;
     }
@@ -435,26 +435,26 @@
         display: flex;
         flex-direction: column;
         gap: 1px;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--sl-border-radius-small);
+        background: color-mix(in oklab, light-dark(var(--color-surface-100), var(--color-surface-800)) 80%, transparent);
+        border: 1px solid color-mix(in oklab, var(--color-surface-500) 40%, transparent);
+        border-radius: var(--radius-base);
         padding: 4px 10px;
-        font-family: var(--font-sans);
+        font-family: system-ui, sans-serif;
         pointer-events: none;
         white-space: nowrap;
         z-index: 10;
-        backdrop-filter: var(--surface-glass);
+        backdrop-filter: blur(12px);
     }
 
     .btn-tooltip-name {
-        font-size: var(--sl-font-size-x-small);
-        font-weight: var(--sl-font-weight-semibold);
-        color: var(--color-text-primary);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: light-dark(var(--color-surface-900), var(--color-surface-100));
     }
 
     .btn-tooltip-assignment {
-        font-size: var(--sl-font-size-2x-small);
-        color: var(--color-text-secondary);
+        font-size: 0.625rem;
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
     }
 
     /* ── SVG borders: assigned + selected ──────────────────────────────── */
@@ -462,18 +462,18 @@
     /* Assigned (not selected): subtle primary border */
     :global(.iris-assigned:not(.iris-selected)) {
         filter:
-            drop-shadow(2px 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
-            drop-shadow(-2px 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
-            drop-shadow(0 2px 0 color-mix(in srgb, var(--color-primary) 45%, transparent))
-            drop-shadow(0 -2px 0 color-mix(in srgb, var(--color-primary) 45%, transparent));
+            drop-shadow(2px 0 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent))
+            drop-shadow(-2px 0 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent))
+            drop-shadow(0 2px 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent))
+            drop-shadow(0 -2px 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent));
     }
 
     /* Selected: full-strength primary border */
     :global(.iris-selected) {
         filter:
-            drop-shadow(2px 0 0 var(--color-primary))
-            drop-shadow(-2px 0 0 var(--color-primary))
-            drop-shadow(0 2px 0 var(--color-primary))
-            drop-shadow(0 -2px 0 var(--color-primary));
+            drop-shadow(2px 0 0 light-dark(var(--color-primary-600), var(--color-primary-400)))
+            drop-shadow(-2px 0 0 light-dark(var(--color-primary-600), var(--color-primary-400)))
+            drop-shadow(0 2px 0 light-dark(var(--color-primary-600), var(--color-primary-400)))
+            drop-shadow(0 -2px 0 light-dark(var(--color-primary-600), var(--color-primary-400)));
     }
 </style>

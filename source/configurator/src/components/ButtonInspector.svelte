@@ -1,8 +1,5 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/divider/divider.js';
+    import { Trash2Icon } from '@lucide/svelte';
     import type { ButtonDescriptor, RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
@@ -93,7 +90,7 @@
 
 </script>
 
-<div class="d-flex flex-col gap-m">
+<div class="flex flex-col gap-4">
     {#key button.buttonCode}
         <ButtonActionPanel
             devices={remoteConfig.devices}
@@ -109,9 +106,11 @@
     {/key}
 
     {#if currentAssignment}
-        <sl-divider></sl-divider>
+        <hr class="hr" />
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-icon-button name="trash" label="Remove assignment" onclick={removeAssignment}></sl-icon-button>
+        <button class="btn-icon hover:preset-tonal" title="Remove assignment" onclick={removeAssignment}>
+            <Trash2Icon class="size-4" />
+        </button>
     {/if}
 </div>

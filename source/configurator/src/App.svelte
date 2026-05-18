@@ -1,14 +1,6 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/card/card.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-    import '@shoelace-style/shoelace/dist/components/select/select.js';
-    import '@shoelace-style/shoelace/dist/components/option/option.js';
-    import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-    import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
+    import { CpuIcon, UploadIcon, DownloadIcon, PlusCircleIcon, PencilIcon, Trash2Icon, OctagonAlertIcon, TriangleAlertIcon, XIcon } from '@lucide/svelte';
+    import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
     import { loadAppConfig } from './app-config.ts';
     import { loadLayout } from '@layout/layout-loader.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
@@ -55,7 +47,7 @@
     let loadError   = $state<string | null>(null);
     let importError = $state<string | null>(null);
 
-    let selectedStateId = $state(0); // mirrors initial remoteConfig.rootStateId
+    let selectedStateId = $state(0);
     let selectedState   = $derived(
         remoteConfig.states.find(s => s.id === selectedStateId) ?? remoteConfig.states[0]
     );
@@ -72,7 +64,7 @@
         onActivate: null, onDeactivate: null,
         buttonFallback: false, activeDevices: [],
     });
-    let deleteDialogEl: SlDialog | null = $state(null);
+    let deleteDialogOpen = $state(false);
     let pendingDeleteName = $state('');
 
     function togglePanel() {
@@ -168,7 +160,7 @@
 
     function handleStateDelete() {
         pendingDeleteName = selectedState.name;
-        deleteDialogEl?.show();
+        deleteDialogOpen = true;
     }
 
     function confirmStateDelete() {
@@ -178,7 +170,7 @@
         };
         selectedStateId = remoteConfig.rootStateId;
         selection = null;
-        deleteDialogEl?.hide();
+        deleteDialogOpen = false;
     }
 
     async function handleExport() {
@@ -271,10 +263,10 @@
     }
 </script>
 
-<div class="shell d-flex flex-col min-h-screen">
+<div class="flex flex-col h-screen overflow-hidden bg-surface-50-900">
 
-    <header class="d-flex items-center gap-xl py-m px-xl glass border-bottom sticky">
-        <a class="wordmark d-flex items-center gap-xs no-underline font-mono font-semibold text-xl lh-denser" href="/" aria-label="OpenIRis home">
+    <header class="flex items-center gap-6 py-3 px-6 bg-surface-100-900/80 backdrop-blur-sm border-b border-surface-200-800 sticky top-0 z-10">
+        <a class="flex items-center gap-2 no-underline font-mono font-semibold text-xl leading-tight" href="/" aria-label="OpenIRis home">
             <svg class="mark-icon shrink-0" viewBox="0 0 100 100" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="50" cy="50" r="40" fill="none" stroke-width="2.5" class="mark-primary-stroke"/>
                 <circle cx="50" cy="50" r="15" class="mark-primary-fill"/>
@@ -290,73 +282,66 @@
             </svg>
             <span class="wordmark-open">Open</span><span class="wordmark-ir">IR</span><span class="wordmark-is">is</span>
         </a>
-        <span class="font-mono text-2xs font-normal tracking-looser text-muted uppercase self-end pb-3xs">OPEN SOURCE UNIVERSAL REMOTE</span>
+        <span class="font-mono text-[0.625rem] font-normal tracking-widest text-surface-500-400 uppercase self-end pb-0.5">OPEN SOURCE UNIVERSAL REMOTE</span>
 
-        <div class="d-flex items-center gap-s ml-auto">
+        <div class="flex items-center gap-3 ml-auto">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button size="small" onclick={() => { deviceDialogOpen = true; }}>
-                <sl-icon slot="prefix" name="cpu"></sl-icon>
+            <button class="btn btn-sm hover:preset-tonal" onclick={() => { deviceDialogOpen = true; }}>
+                <CpuIcon class="size-4" />
                 Devices
                 {#if remoteConfig.devices.length > 0}
-                    <sl-badge slot="suffix" variant="primary" pill>
+                    <span class="badge preset-filled-primary-500 rounded-full">
                         {remoteConfig.devices.length}
-                    </sl-badge>
+                    </span>
                 {/if}
-            </sl-button>
-            <sl-tooltip content="Import remote.bin">
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <sl-button size="small" onclick={handleImport} disabled={!layout}>
-                    <sl-icon slot="prefix" name="upload"></sl-icon>
-                    Import
-                </sl-button>
-            </sl-tooltip>
-            <sl-tooltip content="Export remote.bin">
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <sl-button size="small" variant="primary" onclick={handleExport} disabled={!layout}>
-                    <sl-icon slot="prefix" name="download"></sl-icon>
-                    Export
-                </sl-button>
-            </sl-tooltip>
+            </button>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <button class="btn btn-sm hover:preset-tonal" title="Import remote.bin" onclick={handleImport} disabled={!layout}>
+                <UploadIcon class="size-4" />
+                Import
+            </button>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <button class="btn btn-sm preset-filled-primary-500" title="Export remote.bin" onclick={handleExport} disabled={!layout}>
+                <DownloadIcon class="size-4" />
+                Export
+            </button>
         </div>
     </header>
 
     {#if layout}
-        <div class="state-bar border-bottom">
-            <sl-select
-                class="state-select"
+        <div class="state-bar flex justify-center items-center gap-1 px-4 py-2 bg-surface-100-900 border-b border-surface-200-800 shrink-0">
+            <select
+                class="select w-64"
                 value={String(selectedStateId)}
-                size="small"
-                onsl-change={handleStateChange}
+                onchange={handleStateChange}
             >
                 {#each remoteConfig.states as s (s.id)}
-                    <sl-option value={String(s.id)}>{s.name}</sl-option>
+                    <option value={String(s.id)}>{s.name}</option>
                 {/each}
-            </sl-select>
+            </select>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button
-                name="plus-circle"
-                label="Add state"
-                onclick={handleStateAdd}
-            ></sl-icon-button>
+            <button class="btn-icon hover:preset-tonal" title="Add state" onclick={handleStateAdd}>
+                <PlusCircleIcon class="size-4" />
+            </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button
-                name="pencil"
-                label="Edit state"
-                onclick={handleStateEdit}
-            ></sl-icon-button>
+            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={handleStateEdit}>
+                <PencilIcon class="size-4" />
+            </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button
-                name="trash"
-                label="Delete state"
+            <button
+                class="btn-icon hover:preset-tonal"
+                title="Delete state"
                 disabled={selectedState.stateType === 'root'}
                 onclick={handleStateDelete}
-            ></sl-icon-button>
+            >
+                <Trash2Icon class="size-4" />
+            </button>
         </div>
     {/if}
 
@@ -364,16 +349,16 @@
         main must be a flex child that can shrink: min-height:0 prevents it
         from expanding to fit its content and breaking the layout.
     -->
-    <main class="canvas-area d-flex flex-1">
+    <main class="flex flex-1 min-h-0 overflow-hidden">
         {#if loadError}
-            <div class="d-flex w-full justify-center items-center">
-                <sl-card class="status-card error-card">
-                    <div slot="header" class="d-flex items-center gap-s">
-                        <sl-icon name="exclamation-octagon-fill" class="text-l"></sl-icon>
+            <div class="flex w-full justify-center items-center">
+                <div class="card bg-surface-100-900 preset-outlined-error-500 p-4 w-96 max-w-[90vw] space-y-3 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <OctagonAlertIcon class="size-5 text-error-500" />
                         <span class="font-semibold">Load Error</span>
                     </div>
-                    <p class="m-0 text-s text-muted">{loadError}</p>
-                </sl-card>
+                    <p class="m-0 text-sm text-surface-500-400">{loadError}</p>
+                </div>
             </div>
         {:else if layout}
             <RemotePreview
@@ -410,19 +395,23 @@
             />
             {#if importError}
                 <div class="import-toast">
-                    <sl-icon name="exclamation-triangle-fill" class="text-warning"></sl-icon>
-                    <span class="text-s">{importError}</span>
-                    <button class="toast-dismiss" onclick={() => (importError = null)} aria-label="Dismiss">×</button>
+                    <TriangleAlertIcon class="size-4 text-warning-500 shrink-0" />
+                    <span class="text-sm">{importError}</span>
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <button class="btn-icon hover:preset-tonal size-5 shrink-0" onclick={() => (importError = null)} aria-label="Dismiss">
+                        <XIcon class="size-3" />
+                    </button>
                 </div>
             {/if}
         {:else}
-            <div class="d-flex w-full justify-center items-center">
-                <sl-card class="status-card">
-                    <div class="d-flex items-center gap-m">
-                        <sl-spinner class="text-primary text-xl"></sl-spinner>
-                        <span class="text-s text-muted">Loading…</span>
+            <div class="flex w-full justify-center items-center">
+                <div class="card bg-surface-100-900 p-4 w-96 max-w-[90vw] shadow-md">
+                    <div class="flex items-center gap-4">
+                        <div class="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent shrink-0"></div>
+                        <span class="text-sm text-surface-500-400">Loading…</span>
                     </div>
-                </sl-card>
+                </div>
             </div>
         {/if}
     </main>
@@ -443,43 +432,30 @@
         onCancel={handleStateEditCancel}
     />
 
-    <sl-dialog bind:this={deleteDialogEl} label="Delete State?">
-        Delete &ldquo;{pendingDeleteName}&rdquo;? This cannot be undone.
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button slot="footer" variant="text" onclick={() => deleteDialogEl?.hide()}>Cancel</sl-button>
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button slot="footer" variant="danger" onclick={confirmStateDelete}>Delete</sl-button>
-    </sl-dialog>
+    <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(details) => { deleteDialogOpen = details.open; }}
+    >
+        <Portal>
+            <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
+            <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+                <Dialog.Content class="card bg-surface-100-900 w-80 p-4 space-y-4 shadow-xl">
+                    <Dialog.Title class="text-base font-semibold">Delete State?</Dialog.Title>
+                    <p class="text-sm m-0">Delete &ldquo;{pendingDeleteName}&rdquo;? This cannot be undone.</p>
+                    <footer class="flex justify-end gap-2">
+                        <Dialog.CloseTrigger class="btn hover:preset-tonal">Cancel</Dialog.CloseTrigger>
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <button class="btn preset-outlined-error-500" onclick={confirmStateDelete}>Delete</button>
+                    </footer>
+                </Dialog.Content>
+            </Dialog.Positioner>
+        </Portal>
+    </Dialog>
 
 </div>
 
 <style>
-    .shell { background: var(--color-background); }
-
-    /* Canvas area fills the remaining height; min-height:0 lets flex children shrink */
-    .canvas-area {
-        min-height: 0;
-        overflow: hidden;
-    }
-
-    /* ── State selector bar ──────────────────────────────────────────────── */
-
-    .state-bar {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: var(--sl-spacing-2x-small);
-        padding: var(--sl-spacing-x-small) var(--sl-spacing-medium);
-        background: var(--color-surface);
-        flex-shrink: 0;
-    }
-
-    .state-select {
-        width: 16rem;
-    }
-
     /* ── Panel resize handle ─────────────────────────────────────────────── */
 
     .resize-handle {
@@ -490,57 +466,40 @@
         transition: background-color 0.15s;
     }
 
-    .resize-handle:hover { background: var(--color-primary); opacity: 0.4; }
+    .resize-handle:hover {
+        background: light-dark(var(--color-primary-600), var(--color-primary-400));
+        opacity: 0.4;
+    }
 
     /* ── Logo & wordmark ─────────────────────────────────────────────────── */
 
     .mark-icon { width: 32px; height: 32px; }
 
-    :global(.mark-primary-stroke)   { stroke: var(--color-primary);   fill: none; }
-    :global(.mark-primary-fill)     { fill:   var(--color-primary); }
-    :global(.mark-secondary-stroke) { stroke: var(--color-secondary); fill: none; }
-    :global(.mark-accent-fill)      { fill:   var(--color-accent); opacity: 0.9; }
+    :global(.mark-primary-stroke)   { stroke: light-dark(var(--color-primary-600), var(--color-primary-400)); fill: none; }
+    :global(.mark-primary-fill)     { fill:   light-dark(var(--color-primary-600), var(--color-primary-400)); }
+    :global(.mark-secondary-stroke) { stroke: light-dark(var(--color-secondary-600), var(--color-secondary-400)); fill: none; }
+    :global(.mark-accent-fill)      { fill:   var(--color-tertiary-500); opacity: 0.9; }
 
-    .wordmark-open { color: var(--color-text-primary); }
-    .wordmark-ir   { color: var(--color-primary); }
-    .wordmark-is   { color: var(--color-secondary); }
-
-    /* ── Loading / error cards ───────────────────────────────────────────── */
-
-    .status-card { width: 24rem; max-width: 90vw; }
-
-    .error-card {
-        --sl-panel-border-color: var(--sl-color-danger-500);
-        color: var(--sl-color-danger-600);
-    }
+    .wordmark-open { color: light-dark(var(--color-surface-900), var(--color-surface-100)); }
+    .wordmark-ir   { color: light-dark(var(--color-primary-600), var(--color-primary-400)); }
+    .wordmark-is   { color: light-dark(var(--color-secondary-600), var(--color-secondary-400)); }
 
     /* ── Import error toast (floats over canvas) ─────────────────────────── */
 
     .import-toast {
         position: absolute;
-        bottom: var(--sl-spacing-2x-large);
+        bottom: 2rem;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
         align-items: center;
-        gap: var(--sl-spacing-small);
-        background: var(--color-surface);
-        border: 1px solid var(--sl-color-warning-400);
-        border-radius: var(--sl-border-radius-medium);
-        padding: var(--sl-spacing-small) var(--sl-spacing-medium);
-        backdrop-filter: var(--surface-glass);
+        gap: 0.75rem;
+        background: color-mix(in oklab, light-dark(var(--color-surface-100), var(--color-surface-800)) 80%, transparent);
+        border: 1px solid light-dark(var(--color-warning-400), var(--color-warning-600));
+        border-radius: var(--radius-base);
+        padding: 0.75rem 1rem;
+        backdrop-filter: blur(12px);
         white-space: nowrap;
         z-index: 10;
     }
-
-    .toast-dismiss {
-        all: unset;
-        margin-left: var(--sl-spacing-small);
-        cursor: pointer;
-        color: var(--color-text-secondary);
-        font-size: 1.1rem;
-        line-height: 1;
-    }
-
-    .toast-dismiss:hover { color: var(--color-text-primary); }
 </style>

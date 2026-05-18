@@ -1,12 +1,6 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/input/input.js';
-    import '@shoelace-style/shoelace/dist/components/badge/badge.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/divider/divider.js';
-    import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-    import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
+    import { GripVerticalIcon, XIcon } from '@lucide/svelte';
+    import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
     import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
@@ -130,13 +124,11 @@
     let steps            = $state<ActionPickerSelection[]>(resolveInitialSteps());
     let seqName          = $state(resolveInitialName());
     let seqDelayMs       = $state(resolveInitialDelay());
-    // True while viewing/editing a named sequence with no local modifications.
-    // Set to false the moment the user modifies steps (turning it anonymous).
     let isNamedSequence  = $state(resolveInitialIsNamed());
     let namedSequenceId  = $state<number | null>(resolveInitialNamedId());
     let hasBeenNamed     = $state(resolveInitialHasBeenNamed());
 
-    let confirmDialog = $state<SlDialog | null>(null);
+    let confirmDialogOpen = $state(false);
 
     let stepCount  = $derived(steps.length);
     let stepLabel  = $derived(stepCount === 1 ? '1 step' : `${stepCount} steps`);
@@ -198,8 +190,6 @@
         return 'System';
     }
 
-    // Called after any step modification — clears the named-sequence flag
-    // on the first edit and propagates to the parent.
     function markModifiedAndNotify() {
         isNamedSequence = false;
         namedSequenceId = null;
@@ -279,21 +269,20 @@
 
     function handleBackToSingle() {
         if (isNamedSequence) {
-            // Named sequence: go back silently, restore its checkmark
             mode = 'single';
             selectedKey = namedSequenceId !== null ? `named:${namedSequenceId}` : undefined;
             return;
         }
 
         if (stepCount > 1) {
-            confirmDialog?.show();
+            confirmDialogOpen = true;
         } else {
             doBackToSingle();
         }
     }
 
     function doBackToSingle() {
-        confirmDialog?.hide();
+        confirmDialogOpen = false;
         if (steps.length > 0) {
             const firstStep = steps[0];
             steps = [];
@@ -314,7 +303,7 @@
 
 {#if mode === 'single'}
     <!-- ── Single action mode ─────────────────────────────────────────────── -->
-    <div class="d-flex flex-col">
+    <div class="flex flex-col">
         <ActionPicker
             {devices}
             {functions}
@@ -325,60 +314,65 @@
             onSelect={handleSingleSelect}
             onSelectNamed={handleSelectNamed}
         />
-        <div class="panel-footer d-flex items-center border-top mt-xs pt-xs">
+        <div class="flex items-center border-t border-surface-200-800 mt-2 pt-2">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button variant="text" size="small" onclick={handleTurnIntoSequence}>
+            <button class="btn btn-sm hover:preset-tonal" onclick={handleTurnIntoSequence}>
                 + Turn into sequence
-            </sl-button>
+            </button>
         </div>
     </div>
 
 {:else}
     <!-- ── Sequence mode ──────────────────────────────────────────────────── -->
-    <div class="seq-panel d-flex flex-col">
+    <div class="seq-panel flex flex-col">
 
         <!-- Section 1: Settings -->
         <div class="seq-section shrink-0">
-            <div class="section-header d-flex items-center justify-between px-xs py-3xs">
-                <span class="section-label uppercase tracking-loose text-xs text-muted font-semibold">Sequence settings</span>
+            <div class="section-header flex items-center justify-between px-2 py-1">
+                <span class="uppercase tracking-wide text-xs text-surface-500-400 font-semibold">Sequence settings</span>
                 {#if isReusable}
-                    <sl-badge variant="success">Reusable</sl-badge>
+                    <span class="badge preset-filled-success-500 rounded-full">Reusable</span>
                 {:else if isNamedSequence}
-                    <sl-badge variant="neutral">Named</sl-badge>
+                    <span class="badge preset-tonal rounded-full">Named</span>
                 {/if}
             </div>
-            <div class="settings-body d-flex flex-col gap-xs px-xs py-xs">
-                <sl-input
-                    size="small"
-                    label="Name"
-                    placeholder="Name to make reusable…"
-                    value={seqName}
-                    required={hasBeenNamed || undefined}
-                    oninput={(e: Event) => handleNameInput((e.target as HTMLInputElement).value)}
-                ></sl-input>
-                <sl-input
-                    size="small"
-                    label="Delay"
-                    type="number"
-                    value={String(seqDelayMs)}
-                    min="0"
-                    step="50"
-                    oninput={(e: Event) => handleDelayInput((e.target as HTMLInputElement).value)}
-                >
-                    <span slot="suffix" class="text-xs text-muted">ms between steps</span>
-                </sl-input>
+            <div class="flex flex-col gap-2 px-2 py-2">
+                <label class="label">
+                    <span class="label-text">Name</span>
+                    <input
+                        class="input"
+                        placeholder="Name to make reusable…"
+                        value={seqName}
+                        required={hasBeenNamed || undefined}
+                        oninput={(e: Event) => handleNameInput((e.target as HTMLInputElement).value)}
+                    />
+                </label>
+                <label class="label">
+                    <span class="label-text">Delay</span>
+                    <div class="input-group">
+                        <input
+                            class="ig-input"
+                            type="number"
+                            value={String(seqDelayMs)}
+                            min="0"
+                            step="50"
+                            oninput={(e: Event) => handleDelayInput((e.target as HTMLInputElement).value)}
+                        />
+                        <div class="ig-cell text-xs text-surface-500-400">ms between steps</div>
+                    </div>
+                </label>
             </div>
         </div>
 
-        <sl-divider style="margin: 0;"></sl-divider>
+        <hr class="hr m-0" />
 
         <!-- Section 2: Search (above the step list) -->
         <div class="seq-section shrink-0">
-            <div class="section-header d-flex items-center justify-between px-xs py-3xs">
-                <span class="section-label uppercase tracking-loose text-xs text-muted font-semibold">Add actions</span>
+            <div class="section-header flex items-center justify-between px-2 py-1">
+                <span class="uppercase tracking-wide text-xs text-surface-500-400 font-semibold">Add actions</span>
             </div>
-            <div class="search-body px-xs pb-xs pt-xs">
+            <div class="px-2 pb-2 pt-2">
                 <ActionPicker
                     {devices}
                     {functions}
@@ -389,25 +383,25 @@
             </div>
         </div>
 
-        <sl-divider style="margin: 0;"></sl-divider>
+        <hr class="hr m-0" />
 
         <!-- Section 3: Steps list -->
-        <div class="seq-section d-flex flex-col shrink-0">
-            <div class="section-header d-flex items-center justify-between px-xs py-3xs">
-                <span class="section-label uppercase tracking-loose text-xs text-muted font-semibold">Actions</span>
-                <span class="text-xs text-muted">{stepLabel}</span>
+        <div class="seq-section flex flex-col shrink-0">
+            <div class="section-header flex items-center justify-between px-2 py-1">
+                <span class="uppercase tracking-wide text-xs text-surface-500-400 font-semibold">Actions</span>
+                <span class="text-xs text-surface-500-400">{stepLabel}</span>
             </div>
             <div class="steps-list-wrap">
                 {#if stepCount === 0}
-                    <p class="text-xs text-muted m-0 px-xs py-xs empty-msg">
+                    <p class="text-xs text-surface-500-400 m-0 px-2 py-2 italic">
                         No steps yet — add actions above.
                     </p>
                 {:else}
-                    <div class="steps-list px-xs py-xs d-flex flex-col gap-2xs">
+                    <div class="px-2 py-2 flex flex-col gap-1">
                         {#each steps as step, index (index)}
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
-                                class="seq-row d-flex items-center gap-2xs"
+                                class="seq-row flex items-center gap-1"
                                 class:drag-over={dragOverIndex === index}
                                 class:dragging={dragSrcIndex === index}
                                 draggable="true"
@@ -417,18 +411,19 @@
                                 ondragleave={() => onDragLeave(index)}
                                 ondrop={(e) => onDrop(index, e)}
                             >
-                                <sl-icon name="grip-vertical" class="drag-handle text-muted shrink-0"></sl-icon>
-                                <span class="seq-num text-xs text-muted shrink-0">{index + 1}</span>
-                                <span class="text-s flex-1 min-w-0 truncate">{stepName(step)}</span>
-                                <span class="text-xs text-muted shrink-0">{stepDevice(step)}</span>
+                                <GripVerticalIcon class="size-4 text-surface-500-400 shrink-0" style="cursor: grab;" />
+                                <span class="seq-num text-xs text-surface-500-400 shrink-0">{index + 1}</span>
+                                <span class="text-sm flex-1 min-w-0 truncate">{stepName(step)}</span>
+                                <span class="text-xs text-surface-500-400 shrink-0">{stepDevice(step)}</span>
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <sl-icon-button
-                                    name="x"
-                                    label="Remove step"
-                                    class="remove-btn shrink-0"
+                                <button
+                                    class="btn-icon hover:preset-tonal shrink-0"
+                                    title="Remove step"
                                     onclick={() => handleRemoveStep(index)}
-                                ></sl-icon-button>
+                                >
+                                    <XIcon class="size-3" />
+                                </button>
                             </div>
                         {/each}
                     </div>
@@ -437,101 +432,80 @@
         </div>
 
         <!-- Footer -->
-        <div class="panel-footer d-flex items-center justify-between border-top px-xs py-xs shrink-0">
+        <div class="flex items-center justify-between border-t border-surface-200-800 px-2 py-2 shrink-0">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button variant="text" size="small" onclick={handleBackToSingle}>
+            <button class="btn btn-sm hover:preset-tonal" onclick={handleBackToSingle}>
                 ✕ Back to single action
-            </sl-button>
-            <span class="text-xs text-muted">{stepLabel}</span>
+            </button>
+            <span class="text-xs text-surface-500-400">{stepLabel}</span>
         </div>
 
     </div>
 
     <!-- Discard confirmation (only for anonymous multi-step sequences) -->
-    <sl-dialog
-        bind:this={confirmDialog}
-        label="Discard sequence?"
-        style="--width: 320px;"
+    <Dialog
+        open={confirmDialogOpen}
+        onOpenChange={(details) => { confirmDialogOpen = details.open; }}
     >
-        <p class="text-s m-0">
-            This will discard {stepCount - 1} step{stepCount - 1 === 1 ? '' : 's'}. Continue?
-        </p>
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button slot="footer" variant="text" onclick={() => confirmDialog?.hide()}>Cancel</sl-button>
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button slot="footer" variant="primary" onclick={doBackToSingle}>Discard</sl-button>
-    </sl-dialog>
+        <Portal>
+            <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
+            <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+                <Dialog.Content class="card bg-surface-100-900 w-80 p-4 space-y-4 shadow-xl">
+                    <Dialog.Title class="text-base font-semibold">Discard sequence?</Dialog.Title>
+                    <p class="text-sm m-0">
+                        This will discard {stepCount - 1} step{stepCount - 1 === 1 ? '' : 's'}. Continue?
+                    </p>
+                    <footer class="flex justify-end gap-2">
+                        <Dialog.CloseTrigger class="btn btn-sm hover:preset-tonal">Cancel</Dialog.CloseTrigger>
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <button class="btn btn-sm preset-filled-primary-500" onclick={doBackToSingle}>Discard</button>
+                    </footer>
+                </Dialog.Content>
+            </Dialog.Positioner>
+        </Portal>
+    </Dialog>
 {/if}
 
 <style>
-    .panel-footer {
-        padding-top: var(--sl-spacing-x-small);
-        padding-bottom: var(--sl-spacing-x-small);
-    }
-
     .section-header {
-        background: var(--sl-color-neutral-50);
-        border-bottom: 1px solid var(--color-border);
+        background: light-dark(var(--color-surface-100), var(--color-surface-800));
+        border-bottom: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
     .seq-section {
-        border-bottom: 1px solid var(--color-border);
+        border-bottom: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
-    .seq-section:last-of-type {
-        border-bottom: none;
-    }
+    .seq-section:last-of-type { border-bottom: none; }
 
     .steps-list-wrap {
         overflow-y: auto;
         max-height: 10rem;
     }
 
-    .search-body {
-        overflow-y: visible;
-    }
-
-    .empty-msg {
-        font-style: italic;
-    }
-
     .seq-row {
-        padding: var(--sl-spacing-2x-small) var(--sl-spacing-x-small);
-        border: 1px solid var(--color-border);
-        border-radius: var(--sl-border-radius-medium);
+        padding: 0.25rem 0.5rem;
+        border: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
+        border-radius: var(--radius-base);
         cursor: grab;
         user-select: none;
-        background: var(--sl-color-neutral-0);
+        background: light-dark(var(--color-surface-50), var(--color-surface-900));
         transition: opacity 0.1s, border-color 0.1s, background-color 0.1s;
     }
 
-    .seq-row:active {
-        cursor: grabbing;
-    }
+    .seq-row:active { cursor: grabbing; }
 
-    .seq-row.dragging {
-        opacity: 0.35;
-    }
+    .seq-row.dragging { opacity: 0.35; }
 
     .seq-row.drag-over {
-        border-color: var(--color-primary);
-        background: var(--sl-color-primary-50);
-    }
-
-    .drag-handle {
-        cursor: grab;
-        font-size: var(--sl-font-size-small);
+        border-color: var(--color-primary-600);
+        background: light-dark(var(--color-primary-50), var(--color-primary-950));
     }
 
     .seq-num {
         min-width: 1rem;
         text-align: right;
-    }
-
-    .remove-btn {
-        font-size: var(--sl-font-size-x-small);
     }
 </style>

@@ -1,14 +1,7 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/badge/badge.js';
-    import '@shoelace-style/shoelace/dist/components/switch/switch.js';
-    import '@shoelace-style/shoelace/dist/components/input/input.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
-    import type SlInput from '@shoelace-style/shoelace/dist/components/input/input.component.js';
-    import { untrack } from 'svelte';
+    import { PencilIcon } from '@lucide/svelte';
+    import { Dialog, Portal, Switch } from '@skeletonlabs/skeleton-svelte';
+    import { tick, untrack } from 'svelte';
     import type { State, StateType } from '@model/state.ts';
 
     interface Props {
@@ -21,119 +14,111 @@
 
     let { open, mode, initialState, onConfirm, onCancel }: Props = $props();
 
-    let dialogEl:   SlDialog | null = $state(null);
-    let nameInputEl: SlInput | null = $state(null);
+    let nameInputEl = $state<HTMLInputElement | null>(null);
     let draft = $state<State>({
         id: -1, name: '', stateType: 'persistent',
         screenButtons: [], physicalButtons: [],
         onActivate: null, onDeactivate: null,
         buttonFallback: false, activeDevices: [],
     });
-    let justHandled = false;
 
     $effect(() => {
         if (open) {
             draft = { ...initialState };
-            untrack(() => { dialogEl?.show(); });
-        } else {
-            dialogEl?.hide();
+            untrack(() => {
+                if (mode === 'create') {
+                    tick().then(() => nameInputEl?.focus());
+                }
+            });
         }
     });
 
-    function handleTypeChange(e: Event) {
-        const checked = (e.target as HTMLInputElement).checked;
+    function handleTypeChange(checked: boolean) {
         draft = { ...draft, stateType: (checked ? 'ephemeral' : 'persistent') as StateType };
     }
 
     function handleConfirm() {
-        justHandled = true;
         onConfirm({ ...draft });
-        dialogEl?.hide();
-    }
-
-    function handleCancelClick() {
-        justHandled = true;
-        onCancel();
-        dialogEl?.hide();
-    }
-
-    function handleAfterHide() {
-        if (!justHandled) onCancel();
-        justHandled = false;
     }
 </script>
 
-<sl-dialog
-    bind:this={dialogEl}
-    label={mode === 'create' ? 'Add State' : 'Edit State'}
-    onsl-after-show={() => { if (mode === 'create') nameInputEl?.focus(); }}
-    onsl-after-hide={handleAfterHide}
+<Dialog
+    open={open}
+    onOpenChange={(details) => { if (!details.open) onCancel(); }}
 >
-    <div class="d-flex flex-col gap-s">
-        <sl-input
-            bind:this={nameInputEl}
-            size="small"
-            value={draft.name}
-            onsl-input={(e: Event) => { draft = { ...draft, name: (e.target as HTMLInputElement).value }; }}
-        ></sl-input>
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+            <Dialog.Content class="card bg-surface-100-900 w-full max-w-sm p-4 space-y-4 shadow-xl">
+                <header class="flex justify-between items-center">
+                    <Dialog.Title class="text-base font-semibold">
+                        {mode === 'create' ? 'Add State' : 'Edit State'}
+                    </Dialog.Title>
+                </header>
 
-        {#if draft.stateType === 'root'}
-            <sl-badge variant="neutral" pill>Root</sl-badge>
-        {:else}
-            <sl-switch
-                checked={draft.stateType === 'ephemeral'}
-                onsl-change={handleTypeChange}
-            >Ephemeral</sl-switch>
-        {/if}
+                <div class="flex flex-col gap-3">
+                    <input
+                        bind:this={nameInputEl}
+                        class="input"
+                        value={draft.name}
+                        oninput={(e: Event) => { draft = { ...draft, name: (e.target as HTMLInputElement).value }; }}
+                    />
 
-        {#if draft.stateType !== 'root'}
-            <sl-switch
-                checked={draft.buttonFallback}
-                onsl-change={(e: Event) => { draft = { ...draft, buttonFallback: (e.target as HTMLInputElement).checked }; }}
-            >Button fallback</sl-switch>
-        {/if}
+                    {#if draft.stateType === 'root'}
+                        <span class="badge preset-tonal rounded-full self-start">Root</span>
+                    {:else}
+                        <Switch
+                            checked={draft.stateType === 'ephemeral'}
+                            onCheckedChange={(details) => handleTypeChange(details.checked)}
+                        >
+                            <Switch.Control class="switch">
+                                <Switch.Thumb class="thumb" />
+                            </Switch.Control>
+                            <Switch.Label class="text-sm">Ephemeral</Switch.Label>
+                            <Switch.HiddenInput />
+                        </Switch>
+                    {/if}
 
-        {#if draft.stateType === 'persistent'}
-            <div class="macro-row">
-                <span class="macro-label">On activate</span>
-                <span class="macro-hint">Not configured</span>
-                <sl-icon-button name="pencil" label="Edit on activate" disabled></sl-icon-button>
-            </div>
-            <div class="macro-row">
-                <span class="macro-label">On deactivate</span>
-                <span class="macro-hint">Not configured</span>
-                <sl-icon-button name="pencil" label="Edit on deactivate" disabled></sl-icon-button>
-            </div>
-        {/if}
-    </div>
+                    {#if draft.stateType !== 'root'}
+                        <Switch
+                            checked={draft.buttonFallback}
+                            onCheckedChange={(details) => { draft = { ...draft, buttonFallback: details.checked }; }}
+                        >
+                            <Switch.Control class="switch">
+                                <Switch.Thumb class="thumb" />
+                            </Switch.Control>
+                            <Switch.Label class="text-sm">Button fallback</Switch.Label>
+                            <Switch.HiddenInput />
+                        </Switch>
+                    {/if}
 
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button slot="footer" variant="text" onclick={handleCancelClick}>Cancel</sl-button>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button slot="footer" variant="primary" onclick={handleConfirm}>
-        {mode === 'create' ? 'Add' : 'Save'}
-    </sl-button>
-</sl-dialog>
+                    {#if draft.stateType === 'persistent'}
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-semibold">On activate</span>
+                            <span class="flex-1 text-xs text-surface-500-400">Not configured</span>
+                            <button class="btn-icon hover:preset-tonal" disabled>
+                                <PencilIcon class="size-4" />
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-semibold">On deactivate</span>
+                            <span class="flex-1 text-xs text-surface-500-400">Not configured</span>
+                            <button class="btn-icon hover:preset-tonal" disabled>
+                                <PencilIcon class="size-4" />
+                            </button>
+                        </div>
+                    {/if}
+                </div>
 
-<style>
-    .macro-row {
-        display: flex;
-        align-items: center;
-        gap: var(--sl-spacing-small);
-    }
-
-    .macro-label {
-        font-size: var(--sl-font-size-small);
-        font-weight: var(--sl-font-weight-semibold);
-        color: var(--color-text-primary);
-        white-space: nowrap;
-    }
-
-    .macro-hint {
-        flex: 1;
-        font-size: var(--sl-font-size-x-small);
-        color: var(--color-text-secondary);
-    }
-</style>
+                <footer class="flex justify-end gap-2">
+                    <Dialog.CloseTrigger class="btn hover:preset-tonal">Cancel</Dialog.CloseTrigger>
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <button class="btn preset-filled-primary-500" onclick={handleConfirm}>
+                        {mode === 'create' ? 'Add' : 'Save'}
+                    </button>
+                </footer>
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>

@@ -1,6 +1,4 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/divider/divider.js';
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ScreenButtonConfig } from '@model/actions.ts';
     import { garbageCollect } from '@model/assignment-utils.ts';
@@ -42,9 +40,9 @@
     }
 </script>
 
-<div class="item-list d-flex flex-col gap-xs">
+<div class="flex flex-col gap-2">
     {#if stateData.screenButtons.length === 0}
-        <p class="text-s text-muted text-center m-0 py-m">No buttons yet. Add one below.</p>
+        <p class="text-sm text-surface-500-400 text-center m-0 py-4">No buttons yet. Add one below.</p>
     {:else}
         {#each stateData.screenButtons as btn (btn.id)}
             <ScreenButtonRow
@@ -58,17 +56,11 @@
         {/each}
     {/if}
 
-    <sl-divider></sl-divider>
+    <hr class="hr" />
 
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button size="small" onclick={addButton}>
+    <button class="btn btn-sm hover:preset-tonal" onclick={addButton}>
         Add Button
-    </sl-button>
+    </button>
 </div>
-
-<style>
-    .item-list {
-        /* inherited from ItemList */
-    }
-</style>

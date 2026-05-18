@@ -6,7 +6,9 @@ Browser-based configuration UI for OpenIRis. See [../../agents.md](../../agents.
 
 - **Language:** TypeScript (strict mode)
 - **UI framework:** Svelte 5
-- **Component library:** Shoelace (`@shoelace-style/shoelace`)
+- **Component library:** Skeleton v4 (`@skeletonlabs/skeleton` + `@skeletonlabs/skeleton-svelte`)
+- **Icons:** Lucide (`@lucide/svelte`)
+- **CSS:** Tailwind CSS v4 (via `@tailwindcss/vite`) + `@tailwindcss/forms` plugin
 - **Build tool:** Vite 6
 
 ## Project structure
@@ -16,15 +18,17 @@ src/
   App.svelte              Root component
   main.ts                 Entry point
   app-config.ts           Runtime app configuration type
+  app.css                 Global stylesheet — imports Tailwind, Skeleton, fonts, theme
   components/             Svelte UI components  (@components alias)
   layout/                 Layout descriptor loading and types  (@layout alias)
   model/                  Domain model types (button codes, contexts, etc.)  (@model alias)
   serialization/          Binary .iris format reader and writer  (@serialization alias)
-  styles/                 CSS — theme.css, global.css, utils.css  (@styles alias)
+  styles/
+    theme-open-iris.css   Skeleton v4 theme — full OKLCH color palette, typography, radius
 public/
   app-config.json         Runtime config loaded at startup
 layouts/
-  <id>.json               Layout descriptor — one file per hardware variant (SVG embedded)
+  <id>.toml               Layout descriptor — one file per hardware variant (SVG embedded)
 ```
 
 ### Layout file format
@@ -76,43 +80,40 @@ import type { RemoteLayout } from '@layout/layout-types.ts';
 
 See [../../agents.md](../../agents.md) for the full brand palette and wordmark specification. Here's how it maps to the configurator implementation:
 
-### Theme files
+### Theme
 
-| File | Purpose |
-|------|---------|
-| [src/styles/theme.css](src/styles/theme.css) | Brand CSS custom properties + Shoelace primary/neutral color scale overrides, light and dark |
-| [src/styles/global.css](src/styles/global.css) | Body font, background, color, typography base, scrollbar |
-| [src/styles/utils.css](src/styles/utils.css) | Utility classes (see [CSS styling](#css-styling) section) |
+The Skeleton v4 theme is in `src/styles/theme-open-iris.css`. It defines the full OKLCH color palette for all Skeleton color roles (primary, secondary, tertiary, success, warning, error, surface) and sets typography and radius tokens.
 
-Both are imported in `main.ts` after the Shoelace base theme.
+- **Theme name:** `open-iris` — applied via `data-theme="open-iris"` on `<html>` in `index.html`
+- **Primary:** Deep violet (light) / lighter violet (dark)
+- **Secondary:** Mid violet (wordmark IR letters)
+- **Tertiary:** Stamen gold (accents, IR emitter dot)
+- **Surface:** Plum-tinted neutrals
 
-### CSS custom properties
+### CSS styling approach
 
-Use `--color-*` tokens (defined in theme.css) for all colors in components. Never hardcode hex colors. The full set:
+Use Tailwind utility classes and Skeleton presets for all styling. Priority:
 
+1. **Tailwind utilities** — for layout, spacing, typography, colors using Skeleton color tokens (e.g. `text-primary-600-400`, `bg-surface-100-900`, `border-surface-200-800`)
+2. **Skeleton presets** — `preset-filled-primary-500`, `preset-tonal`, `preset-outlined-error-500`, etc. for interactive elements
+3. **Component `<style>` block** — only for pseudo-class rules (`:hover`, `:focus`), `:global()` overrides, and fixed pixel dimensions. Use `light-dark(var(--color-*-N), var(--color-*-N))` for dark-mode-aware values.
+
+Never hardcode hex colors. Never use the old `--color-primary`, `--color-border`, `--color-surface` tokens (they no longer exist). Use Skeleton's OKLCH tokens: `--color-primary-600`, `--color-surface-200-800`, etc.
+
+### Skeleton color pair notation
+
+Skeleton uses color pairs for automatic light/dark adaptation:
+- `bg-surface-50-950` → light: surface-50, dark: surface-950
+- `bg-surface-100-900` → light: surface-100, dark: surface-900
+- `border-surface-200-800` → light: surface-200, dark: surface-800
+- `text-surface-500-400` → muted text (medium surface shade in both modes)
+- `text-primary-600-400` → primary text with dark mode variant
+
+In `<style>` blocks, use `light-dark()` for the same effect:
+```css
+background: light-dark(var(--color-surface-100), var(--color-surface-800));
+border-color: light-dark(var(--color-surface-200), var(--color-surface-700));
 ```
---color-primary          deep violet (main brand color)
---color-secondary        mid violet
---color-accent           stamen gold
---color-text-primary     near black / near white
---color-text-secondary   muted violet
---color-background       dark near-black (dark) / soft lavender (light)
---color-surface          semi-transparent surface (rgba — the "glass" base)
---color-border           vivid violet with alpha (the "neon" edge)
---color-glow             rgba spread color for box-shadow glows
---font-sans              system sans-serif stack
---font-mono              system monospace stack
-```
-
-Glass token:
-
-```
---surface-glass          backdrop-filter blur value — use with the .glass utility class
-```
-
-### Shoelace theming
-
-Shoelace component tokens (`--sl-color-primary-*`, `--sl-font-sans`, etc.) are overridden in theme.css to match the violet brand palette. When using Shoelace components (`<sl-button>`, `<sl-input>`, etc.) they will automatically pick up brand colors. The `setBasePath` call in main.ts is required for Shoelace icon assets to resolve correctly.
 
 ### Wordmark
 
@@ -122,87 +123,95 @@ The branded `<header>` in App.svelte renders the wordmark as three `<span>` elem
 
 ## Component philosophy
 
-**Use Shoelace components as the primary building blocks.** Before writing any custom UI, check whether Shoelace already provides it. The rule is: if Shoelace has it, use it — do not reimplement it with native elements or custom CSS.
+**Use Skeleton components for complex interactive patterns; native HTML with Tailwind for simple elements.**
 
-### Use Shoelace directly for
+### Skeleton headless components (from `@skeletonlabs/skeleton-svelte`)
 
-| Need | Shoelace component |
+Use these for interactive patterns that require accessible state management:
+
+| Need | Skeleton component |
 |---|---|
-| Button, icon button, link button | `<sl-button>` |
-| Text input, number input, password | `<sl-input>` |
-| Multiline text | `<sl-textarea>` |
-| Dropdown select | `<sl-select>` + `<sl-option>` |
-| Checkbox, radio, switch | `<sl-checkbox>`, `<sl-radio-group>`, `<sl-switch>` |
-| Modal dialog | `<sl-dialog>` |
-| Side drawer | `<sl-drawer>` |
-| Card / surface | `<sl-card>` |
-| Tabs | `<sl-tab-group>`, `<sl-tab>`, `<sl-tab-panel>` |
-| Tooltip | `<sl-tooltip>` |
-| Alert / toast | `<sl-alert>` |
-| Badge | `<sl-badge>` |
-| Tag / chip | `<sl-tag>` |
-| Icon | `<sl-icon>` |
-| Loading spinner | `<sl-spinner>` |
-| Skeleton loader | `<sl-skeleton>` |
-| Divider | `<sl-divider>` |
-| Progress bar | `<sl-progress-bar>` |
-| Dropdown menu | `<sl-dropdown>`, `<sl-menu>`, `<sl-menu-item>` |
-| Tree view | `<sl-tree>`, `<sl-tree-item>` |
+| Modal dialog | `<Dialog>` with `<Portal>`, `Dialog.Backdrop`, `Dialog.Positioner`, `Dialog.Content` |
+| Toggle switch | `<Switch>` with `Switch.Control`, `Switch.Thumb`, `Switch.Label`, `Switch.HiddenInput` |
+| Tab group | `<Tabs>` with `Tabs.List`, `Tabs.Trigger`, `Tabs.Content` |
 
-### When to create a custom Svelte component
+All Skeleton components are headless — no default styles. You must apply Skeleton preset classes or Tailwind classes to style them.
 
-A custom Svelte component is appropriate when it:
-- **Wraps a Shoelace component with app-specific behavior** — e.g. a `<MetricCard>` built on `<sl-card>` that knows how to render a label/value pair, or a `<ConfirmDialog>` built on `<sl-dialog>` with the project's standard button layout.
-- **Composes multiple Shoelace components** into a reusable unit for a domain concept — e.g. a button-code picker that combines `<sl-select>` with a preview.
-- **Is genuinely app-specific** — layout that has no Shoelace analogue, like the remote preview canvas.
+### Native HTML elements with Tailwind (preferred for simple needs)
 
-Never build a custom alternative to a component Shoelace already provides. If a Shoelace component needs visual tweaking, use CSS custom properties (`--sl-*`) or the `::part()` pseudo-element, not a native element replacement.
+| Need | Approach |
+|---|---|
+| Button | `<button class="btn preset-filled-primary-500">` or `<button class="btn btn-sm hover:preset-tonal">` |
+| Icon button | `<button class="btn-icon hover:preset-tonal">` |
+| Text input | `<input class="input">` (styled by `@tailwindcss/forms` + Skeleton) |
+| Number input | `<input class="input" type="number">` |
+| Select / dropdown | `<select class="select">` |
+| Input with unit suffix | `<div class="input-group"><input class="ig-input"><div class="ig-cell">unit</div></div>` |
+| Labeled input | `<label class="label"><span class="label-text">Name</span><input class="input"></label>` |
+| Badge / chip | `<span class="badge preset-tonal rounded-full">` or `<span class="badge preset-filled-primary-500 rounded-full">` |
+| Divider | `<hr class="hr">` |
+| Loading spinner | `<div class="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent">` |
 
----
+### Icons (Lucide)
 
-## CSS styling
+Import named icon components from `@lucide/svelte`. All icons use `class="size-4"` (or `size-3`, `size-5`, `size-8` as needed). Icon mapping:
 
-All styling must follow this priority ladder, from highest to lowest preference:
+| Bootstrap name (old) | Lucide component |
+|---|---|
+| `cpu` | `CpuIcon` |
+| `upload` | `UploadIcon` |
+| `download` | `DownloadIcon` |
+| `plus-circle` | `PlusCircleIcon` |
+| `pencil` | `PencilIcon` |
+| `trash` | `Trash2Icon` |
+| `chevron-left` | `ChevronLeftIcon` |
+| `chevron-right` | `ChevronRightIcon` |
+| `exclamation-octagon-fill` | `OctagonAlertIcon` |
+| `exclamation-triangle-fill` | `TriangleAlertIcon` |
+| `search` | `SearchIcon` |
+| `grip-vertical` | `GripVerticalIcon` |
+| `x` | `XIcon` |
+| `check2` | `CheckIcon` |
+| `collection-play` | `ListVideoIcon` |
+| `list-ul` | `ListIcon` |
+| `arrow-up` | `ArrowUpIcon` |
+| `arrow-down` | `ArrowDownIcon` |
+| `arrow-right` | `ArrowRightIcon` |
+| `lightning-charge` | `ZapIcon` |
 
-1. **Utility classes** from `src/styles/utils.css` — use these for the vast majority of layout, spacing, typography, color, and display needs.
-2. **Design token variables** (`var(--sl-*)`, `var(--color-*)`) in a component `<style>` block — when a utility class doesn't exist for the property, or when a value needs component-specific context (e.g. a hover rule, a `:global()` override, a unique layout dimension).
-3. **Hard-coded values** — only for genuinely exceptional cases where no token exists and no utility applies (e.g. a fixed pixel dimension for a brand asset like the 32px mark icon). Must be a rare exception, not the default.
+### Dialog pattern
 
-Never hard-code hex colors. If you need a semantic state color (danger, success, warning), use the Shoelace semantic tokens (`--sl-color-danger-*`, `--sl-color-success-*`, `--sl-color-warning-*`).
+All dialogs use Skeleton's controlled Dialog with Portal. The `open` prop controls visibility. `onOpenChange` is called when the user closes via Escape or backdrop click:
 
-### Utility class reference
+```svelte
+<Dialog open={open} onOpenChange={(details) => { if (!details.open) onCancel(); }}>
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+            <Dialog.Content class="card bg-surface-100-900 w-full max-w-sm p-4 space-y-4 shadow-xl">
+                <Dialog.Title class="text-base font-semibold">Title</Dialog.Title>
+                <!-- content -->
+                <footer class="flex justify-end gap-2">
+                    <Dialog.CloseTrigger class="btn hover:preset-tonal">Cancel</Dialog.CloseTrigger>
+                    <button class="btn preset-filled-primary-500" onclick={handleConfirm}>Save</button>
+                </footer>
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>
+```
 
-The full suite is defined in [src/styles/utils.css](src/styles/utils.css). Key categories:
+### Switch pattern
 
-| Category | Classes | Scale / values |
-|---|---|---|
-| Padding | `p-*`, `px-*`, `py-*`, `pt-*`, `pr-*`, `pb-*`, `pl-*` | `0 3xs 2xs xs s m l xl 2xl 3xl 4xl` |
-| Margin | `m-*`, `mx-*`, `my-*`, `mt-*`, `mr-*`, `mb-*`, `ml-*` | same scale + `auto` |
-| Gap | `gap-*`, `gap-x-*`, `gap-y-*` | same scale |
-| Font size | `text-2xs` … `text-4xl` | maps to `--sl-font-size-*` |
-| Font weight | `font-light`, `font-normal`, `font-semibold`, `font-bold` | |
-| Font family | `font-sans`, `font-mono` | |
-| Line height | `lh-denser`, `lh-dense`, `lh-normal`, `lh-loose`, `lh-looser` | |
-| Letter spacing | `tracking-denser` … `tracking-looser` | |
-| Text color | `text-primary`, `text-secondary`, `text-accent`, `text-body`, `text-muted`, `text-danger`, `text-success`, `text-warning` | |
-| Background | `bg-background`, `bg-surface`, `bg-primary`, `bg-danger`, `bg-success`, `bg-warning`, `bg-transparent` | |
-| Border | `border`, `border-top`, `border-right`, `border-bottom`, `border-left`, `border-none` | |
-| Border radius | `rounded-none`, `rounded-s`, `rounded-m`, `rounded-l`, `rounded-xl`, `rounded-2xl`, `rounded-circle`, `rounded-pill` | |
-| Display | `d-block`, `d-inline`, `d-inline-block`, `d-flex`, `d-inline-flex`, `d-grid`, `d-contents`, `d-none` | |
-| Flex | `flex-row`, `flex-col`, `flex-wrap`, `flex-nowrap`, `flex-1`, `flex-auto`, `flex-none`, `shrink-0`, `grow` | |
-| Align/justify | `items-*`, `justify-*`, `self-*` | `start center end stretch (baseline)` |
-| Text utils | `text-left`, `text-center`, `text-right`, `uppercase`, `lowercase`, `capitalize`, `underline`, `no-underline`, `truncate` | |
-| Sizing | `w-full`, `w-auto`, `h-full`, `h-auto`, `min-h-screen`, `min-w-0`, `min-h-0` | |
-| Position | `relative`, `absolute`, `fixed`, `sticky` | |
-| Overflow | `overflow-hidden`, `overflow-auto`, `overflow-scroll`, `overflow-x-hidden`, `overflow-y-auto` | |
-| Misc | `cursor-pointer`, `cursor-default`, `pointer-events-none`, `select-none` | |
-
-### When a component `<style>` block is appropriate
-
-- **Hover / focus / active rules** — pseudo-class selectors cannot be expressed as utility classes.
-- **`:global()` overrides** — targeting SVG child elements or Shoelace internals.
-- **Unique layout dimensions** — fixed pixel sizes for brand assets (e.g. `width: 32px` for the mark icon) that have no matching token.
-- **Semantic component colors** not in the utility set — use token variables directly, never hex values.
+```svelte
+<Switch checked={value} onCheckedChange={(details) => { value = details.checked; }}>
+    <Switch.Control class="switch">
+        <Switch.Thumb class="thumb" />
+    </Switch.Control>
+    <Switch.Label class="text-sm">Label text</Switch.Label>
+    <Switch.HiddenInput />
+</Switch>
+```
 
 ---
 
@@ -283,4 +292,4 @@ Prettier is configured via `.prettierrc` at this directory level. Run `npm run f
 
 ## Comments
 
-Only write a comment when the **why** is non-obvious — a subtle serialization invariant, a Svelte lifecycle quirk, or a workaround for a specific browser or Shoelace behavior. Do not describe what the code does if well-named identifiers already say it.
+Only write a comment when the **why** is non-obvious — a subtle serialization invariant, a Svelte lifecycle quirk, or a workaround for a specific browser or Skeleton behavior. Do not describe what the code does if well-named identifiers already say it.

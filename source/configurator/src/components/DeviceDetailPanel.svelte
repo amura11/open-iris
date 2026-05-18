@@ -22,31 +22,30 @@
     }
 </script>
 
-<div class="d-flex flex-col h-full overflow-hidden">
-    <div class="p-m border-bottom shrink-0">
-        <div class="text-l font-semibold mb-2xs">{device.name}</div>
-        <div class="d-flex items-center gap-xs">
-            <span class="text-s text-muted">{device.manufacturer}</span>
-            <span class="separator text-s">·</span>
-            <sl-badge variant={device.type === 'ir' ? 'primary' : 'warning'} pill>
+<div class="flex flex-col h-full overflow-hidden">
+    <div class="p-4 border-b border-surface-200-800 shrink-0">
+        <div class="text-lg font-semibold mb-1">{device.name}</div>
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-surface-500-400">{device.manufacturer}</span>
+            <span class="opacity-40 text-sm">·</span>
+            <span class="badge rounded-full {device.type === 'ir' ? 'preset-tonal-primary' : 'preset-tonal-warning'}">
                 {device.type.toUpperCase()}
-            </sl-badge>
-            <span class="separator text-s">·</span>
-            <span class="text-s text-muted">{device.functions.length} functions</span>
+            </span>
+            <span class="opacity-40 text-sm">·</span>
+            <span class="text-sm text-surface-500-400">{device.functions.length} functions</span>
         </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto py-xs">
+    <div class="flex-1 overflow-y-auto py-2">
         {#each device.functions as fn (fn.name)}
-            <div class="fn-row d-flex justify-between items-baseline px-m py-xs gap-m">
-                <span class="text-s shrink-0">{fn.name}</span>
-                <span class="text-xs font-mono text-muted text-right truncate">{functionSummary(fn)}</span>
+            <div class="fn-row flex justify-between items-baseline px-4 py-2 gap-4">
+                <span class="text-sm shrink-0">{fn.name}</span>
+                <span class="text-xs font-mono text-surface-500-400 text-right truncate">{functionSummary(fn)}</span>
             </div>
         {/each}
     </div>
 </div>
 
 <style>
-    .fn-row:hover { background: var(--sl-color-neutral-50); }
-    .separator    { color: var(--sl-color-neutral-300); }
+    .fn-row:hover { background: light-dark(var(--color-surface-100), var(--color-surface-800)); }
 </style>

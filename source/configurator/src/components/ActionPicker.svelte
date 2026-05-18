@@ -1,7 +1,5 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/input/input.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+    import { SearchIcon, CheckIcon, ListVideoIcon, XIcon } from '@lucide/svelte';
     import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
@@ -150,18 +148,27 @@
     }
 </script>
 
-<div class="d-flex flex-col gap-xs">
-    <sl-input
-        size="small"
-        placeholder="Search actions…"
-        clearable
-        disabled={expandedEditor !== null}
-        value={filterQuery}
-        oninput={(e: Event) => { filterQuery = (e.target as HTMLInputElement).value; }}
-        onsl-clear={() => { filterQuery = ''; }}
-    >
-        <sl-icon slot="prefix" name="search"></sl-icon>
-    </sl-input>
+<div class="flex flex-col gap-2">
+    <div class="relative">
+        <SearchIcon class="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500-400 pointer-events-none" />
+        <input
+            class="input pl-8 {filterQuery ? 'pr-8' : ''}"
+            placeholder="Search actions…"
+            disabled={expandedEditor !== null}
+            value={filterQuery}
+            oninput={(e: Event) => { filterQuery = (e.target as HTMLInputElement).value; }}
+        />
+        {#if filterQuery}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <button
+                class="absolute right-2 top-1/2 -translate-y-1/2 btn-icon hover:preset-tonal size-5"
+                onclick={() => { filterQuery = ''; }}
+            >
+                <XIcon class="size-3" />
+            </button>
+        {/if}
+    </div>
 
     {#if expandedEditor === 'navigate'}
         <NavigateActionEditor {states} onConfirm={handleNavigateConfirm} onCancel={handleEditorCancel} />
@@ -173,79 +180,76 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                    class="item-row d-flex items-center px-xs py-2xs"
+                    class="item-row flex items-center px-2 py-1"
                     class:cursor-pointer={mode === 'single'}
                     class:selected={mode === 'single' && selectedKey === itemKey(item)}
                     class:named-sequence-row={item.kind === 'named_sequence'}
                     onclick={() => handleRowClick(item)}
                 >
                     {#if item.kind === 'named_sequence'}
-                        <sl-icon name="collection-play" class="text-xs text-muted shrink-0 mr-2xs"></sl-icon>
+                        <ListVideoIcon class="size-3 opacity-40 shrink-0 mr-1" />
                     {/if}
-                    <span class="text-s flex-1">{itemLabel(item)}</span>
+                    <span class="text-sm flex-1">{itemLabel(item)}</span>
                     <span class="text-xs sublabel">{itemSublabel(item)}</span>
                     {#if mode === 'single'}
-                        <sl-icon
-                            name="check2"
-                            class="check-icon text-s ml-xs"
+                        <CheckIcon
+                            class="size-4 ml-2"
                             style="visibility: {selectedKey === itemKey(item) ? 'visible' : 'hidden'};"
-                        ></sl-icon>
+                        />
                     {:else}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <button class="plus-btn ml-xs" onclick={(e) => { e.stopPropagation(); handlePlusClick(item); }}>+</button>
+                        <button class="plus-btn ml-2" onclick={(e) => { e.stopPropagation(); handlePlusClick(item); }}>+</button>
                     {/if}
                 </div>
             {/each}
         </div>
     {:else}
-        <p class="text-s text-muted m-0">No actions match &ldquo;{filterQuery.trim()}&rdquo;.</p>
+        <p class="text-sm text-surface-500-400 m-0">No actions match &ldquo;{filterQuery.trim()}&rdquo;.</p>
     {/if}
 </div>
 
 <style>
     .items-list {
-        border: 1px solid var(--color-border);
-        border-radius: var(--sl-border-radius-medium);
+        border: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
+        border-radius: var(--radius-base);
         overflow-y: auto;
         max-height: 16rem;
     }
 
     .item-row {
-        border-bottom: 1px solid var(--color-border);
+        border-bottom: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
         transition: background-color 0.1s;
     }
 
-    .item-row:last-child {
-        border-bottom: none;
-    }
+    .item-row:last-child { border-bottom: none; }
 
     .item-row.cursor-pointer:hover {
-        background: var(--sl-color-neutral-50);
+        background: light-dark(var(--color-surface-100), var(--color-surface-800));
     }
 
     .item-row.selected {
-        background: var(--sl-color-primary-50);
+        background: light-dark(var(--color-primary-50), var(--color-primary-950));
     }
 
     .named-sequence-row {
-        background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+        background: color-mix(in srgb, var(--color-tertiary-500) 6%, transparent);
     }
 
     .named-sequence-row:hover {
-        background: color-mix(in srgb, var(--color-accent) 12%, transparent) !important;
+        background: color-mix(in srgb, var(--color-tertiary-500) 12%, transparent) !important;
     }
 
     .named-sequence-row.selected {
-        background: color-mix(in srgb, var(--color-accent) 14%, var(--sl-color-primary-50));
+        background: color-mix(in srgb, var(--color-tertiary-500) 14%, light-dark(var(--color-primary-50), var(--color-primary-950)));
     }
 
     .sublabel {
-        color: var(--color-text-secondary);
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
     }
 
     .named-sequence-row .sublabel {
-        color: var(--color-accent);
+        color: var(--color-tertiary-500);
         opacity: 0.85;
     }
 
@@ -253,13 +257,13 @@
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        border: 1px solid var(--color-border);
+        border: 1px solid light-dark(var(--color-surface-300), var(--color-surface-600));
         background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: var(--color-text-secondary);
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
         font-size: 14px;
         line-height: 1;
         flex-shrink: 0;
@@ -269,8 +273,8 @@
     }
 
     .plus-btn:hover {
-        background: var(--sl-color-primary-100);
-        color: var(--color-primary);
-        border-color: var(--color-primary);
+        background: light-dark(var(--color-primary-100), var(--color-primary-900));
+        color: var(--color-primary-600);
+        border-color: var(--color-primary-600);
     }
 </style>

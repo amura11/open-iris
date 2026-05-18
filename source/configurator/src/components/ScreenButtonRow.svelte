@@ -1,8 +1,5 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/alert/alert.js';
+    import { PencilIcon, Trash2Icon, ListVideoIcon, ZapIcon, ArrowRightIcon, TriangleAlertIcon, ListIcon } from '@lucide/svelte';
     import type { ScreenButtonConfig, Sequence, SequenceId } from '@model/actions.ts';
     import type { State, RemoteConfig, SequenceMetadata } from '@model/state.ts';
     import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
@@ -183,27 +180,27 @@
     }
 </script>
 
-<div class="row-wrapper d-flex flex-col rounded-m" class:expanded={showAssignmentPanel}>
+<div class="row-wrapper flex flex-col rounded-md" class:expanded={showAssignmentPanel}>
 
     <!-- ── Summary row ────────────────────────────────────────── -->
-    <div class="item-row d-flex items-center gap-xs">
+    <div class="item-row flex items-center gap-2">
         {#if isRenamingLabel}
             <!-- svelte-ignore a11y_autofocus -->
             <input
-                class="edit-input flex-1"
+                class="input flex-1"
                 bind:value={pendingLabel}
                 onkeydown={handleRenameKeydown}
                 autofocus
             />
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button size="small" variant="primary" onclick={commitRename}>Save</sl-button>
+            <button class="btn btn-sm preset-filled-primary-500" onclick={commitRename}>Save</button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button size="small" onclick={() => { isRenamingLabel = false; }}>Cancel</sl-button>
+            <button class="btn btn-sm hover:preset-tonal" onclick={() => { isRenamingLabel = false; }}>Cancel</button>
         {:else}
-            <div class="d-flex flex-col flex-1 min-w-0 gap-2xs">
-                <span class="truncate text-s">{button.label}</span>
+            <div class="flex flex-col flex-1 min-w-0 gap-1">
+                <span class="truncate text-sm">{button.label}</span>
 
                 {#if isAssigned && currentAssignment}
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -228,16 +225,20 @@
 
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button name="pencil" label="Rename button" onclick={startRename}></sl-icon-button>
+            <button class="btn-icon hover:preset-tonal" title="Rename button" onclick={startRename}>
+                <PencilIcon class="size-4" />
+            </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button name="trash" label="Delete button" class="danger-icon" onclick={onDelete}></sl-icon-button>
+            <button class="btn-icon hover:preset-tonal text-error-500" title="Delete button" onclick={onDelete}>
+                <Trash2Icon class="size-4" />
+            </button>
         {/if}
     </div>
 
     <!-- ── Assignment panel (expands below row) ──────────────────────── -->
     {#if showAssignmentPanel}
-        <div class="assignment-panel d-flex flex-col gap-s p-s border-top">
+        <div class="assignment-panel flex flex-col gap-3 p-3 border-t border-surface-200-800">
             {#if showPicker}
                 <ActionPicker
                     devices={remoteConfig.devices}
@@ -246,28 +247,28 @@
                     onSelect={assignSingleAction}
                 />
 
-                <sl-divider></sl-divider>
+                <hr class="hr m-0" />
 
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <sl-button size="small" onclick={openSequenceEditor}>
-                    <sl-icon slot="prefix" name="list-ul"></sl-icon>
+                <button class="btn btn-sm hover:preset-tonal" onclick={openSequenceEditor}>
+                    <ListIcon class="size-4" />
                     Multi-action sequence…
-                </sl-button>
+                </button>
 
                 {#if namedSequences.length > 0}
                     <div>
-                        <div class="text-xs text-muted uppercase tracking-looser mb-xs">Saved sequences</div>
-                        <div class="d-flex flex-col gap-2xs">
+                        <div class="text-xs text-surface-500-400 uppercase tracking-wider mb-2">Saved sequences</div>
+                        <div class="flex flex-col gap-1">
                             {#each namedSequences as meta (meta.sequenceId)}
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <div
-                                    class="saved-sequence-row d-flex items-center justify-between px-xs py-2xs rounded-s cursor-pointer"
+                                    class="saved-sequence-row flex items-center justify-between px-2 py-1 rounded cursor-pointer"
                                     onclick={() => assignNamedSequence(meta.sequenceId)}
                                 >
-                                    <span class="text-s">{meta.name}</span>
-                                    <sl-icon name="arrow-right" class="text-xs text-muted"></sl-icon>
+                                    <span class="text-sm">{meta.name}</span>
+                                    <ArrowRightIcon class="size-4 text-surface-500-400" />
                                 </div>
                             {/each}
                         </div>
@@ -276,43 +277,49 @@
 
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <sl-button size="small" variant="text" onclick={() => { isAssigning = false; isChangingAssignment = false; }}>
+                <button class="btn btn-sm hover:preset-tonal" onclick={() => { isAssigning = false; isChangingAssignment = false; }}>
                     Cancel
-                </sl-button>
+                </button>
 
             {:else if currentAssignment}
                 {@const usedBy = isNamed && currentSequence
                     ? findButtonsUsingSequence(currentSequence.id, remoteConfig, buttonFriendlyName)
                     : []}
 
-                <div class="d-flex flex-col gap-s">
-                    <div class="assignment-label d-flex items-center gap-xs px-s py-xs rounded-m">
-                        <sl-icon name={isNamed ? 'collection-play' : 'lightning-charge'} class="text-s text-muted shrink-0"></sl-icon>
-                        <span class="text-s flex-1 min-w-0 truncate">{assignmentLabel(currentAssignment, remoteConfig)}</span>
+                <div class="flex flex-col gap-3">
+                    <div class="assignment-label flex items-center gap-2 px-3 py-2 rounded-md">
+                        {#if isNamed}
+                            <ListVideoIcon class="size-4 text-surface-500-400 shrink-0" />
+                        {:else}
+                            <ZapIcon class="size-4 text-surface-500-400 shrink-0" />
+                        {/if}
+                        <span class="text-sm flex-1 min-w-0 truncate">{assignmentLabel(currentAssignment, remoteConfig)}</span>
                     </div>
 
                     {#if isNamed && usedBy.length > 1}
-                        <sl-alert variant="warning" open>
-                            <sl-icon slot="icon" name="exclamation-triangle"></sl-icon>
+                        <div class="flex items-center gap-2 p-3 rounded preset-tonal-warning">
+                            <TriangleAlertIcon class="size-4 shrink-0" />
                             <span class="text-xs">Used by {usedBy.length} buttons. Editing will affect all of them.</span>
-                        </sl-alert>
+                        </div>
                     {/if}
 
-                    <div class="d-flex gap-xs">
+                    <div class="flex gap-2">
                         {#if isNamed}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <sl-button size="small" onclick={openNamedSequenceEditor}>Edit sequence</sl-button>
+                            <button class="btn btn-sm hover:preset-tonal" onclick={openNamedSequenceEditor}>Edit sequence</button>
                         {/if}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <sl-button size="small" onclick={() => { isChangingAssignment = true; }}>Replace</sl-button>
+                        <button class="btn btn-sm hover:preset-tonal" onclick={() => { isChangingAssignment = true; }}>Replace</button>
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <sl-icon-button name="trash" label="Remove assignment" onclick={removeAssignment}></sl-icon-button>
+                        <button class="btn-icon hover:preset-tonal text-error-500" title="Remove assignment" onclick={removeAssignment}>
+                            <Trash2Icon class="size-4" />
+                        </button>
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <sl-button size="small" variant="text" class="ml-auto" onclick={() => { isAssigning = false; }}>Done</sl-button>
+                        <button class="btn btn-sm hover:preset-tonal ml-auto" onclick={() => { isAssigning = false; }}>Done</button>
                     </div>
                 </div>
             {/if}
@@ -338,76 +345,46 @@
     }
 
     .row-wrapper:not(.expanded):hover {
-        background-color: color-mix(in srgb, var(--color-primary) 6%, transparent);
-        border-color: var(--color-border);
+        background-color: color-mix(in srgb, var(--color-primary-500) 6%, transparent);
+        border-color: light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
     .row-wrapper.expanded {
-        border-color: var(--color-border);
+        border-color: light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
     .item-row {
-        padding: var(--sl-spacing-2x-small) var(--sl-spacing-x-small);
-    }
-
-    .assignment-panel {
-        border-top-color: var(--color-border);
+        padding: 0.25rem 0.5rem;
     }
 
     .assignment-chip {
-        color: var(--color-primary);
-        border-bottom: 1px dashed var(--color-primary);
+        color: var(--color-primary-600);
+        border-bottom: 1px dashed var(--color-primary-600);
         opacity: 0.8;
     }
 
-    .assignment-chip:hover {
-        opacity: 1;
-    }
+    .assignment-chip:hover { opacity: 1; }
 
     .unassigned-chip {
-        color: var(--color-text-secondary);
-        border-bottom: 1px dashed var(--color-text-secondary);
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
+        border-bottom: 1px dashed light-dark(var(--color-surface-600), var(--color-surface-400));
     }
 
     .unassigned-chip:hover {
-        color: var(--color-text-primary);
+        color: light-dark(var(--color-surface-900), var(--color-surface-100));
     }
 
     .assignment-label {
-        background: var(--sl-color-neutral-50);
-        border: 1px solid var(--color-border);
+        background: light-dark(var(--color-surface-100), var(--color-surface-800));
+        border: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
     .saved-sequence-row {
-        border: 1px solid var(--color-border);
+        border: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
         transition: background-color 0.1s;
     }
 
     .saved-sequence-row:hover {
-        background: var(--sl-color-neutral-50);
-    }
-
-    .edit-input {
-        flex: 1;
-        min-width: 0;
-        border: 1px solid var(--color-border);
-        border-radius: var(--sl-border-radius-medium);
-        padding: 0 var(--sl-spacing-small);
-        background: var(--color-surface);
-        color: var(--color-text-primary);
-        font-family: var(--font-sans);
-        font-size: var(--sl-font-size-small);
-        height: 2rem;
-        outline: none;
-        transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-    .edit-input:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 var(--sl-focus-ring-width) var(--sl-focus-ring-color);
-    }
-
-    :global(.danger-icon)::part(base):hover {
-        color: var(--sl-color-danger-600);
+        background: light-dark(var(--color-surface-100), var(--color-surface-800));
     }
 </style>

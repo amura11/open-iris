@@ -1,7 +1,5 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/badge/badge.js';
+    import { ChevronLeftIcon, ChevronRightIcon } from '@lucide/svelte';
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
@@ -38,39 +36,35 @@
 </script>
 
 <aside
-    class="inspector"
+    class="inspector flex flex-col border-l border-surface-200-800 bg-surface-50-900 shrink-0 overflow-hidden"
     class:collapsed
     style={collapsed ? undefined : `width: ${width}px`}
 >
     {#if collapsed}
-        <div class="collapsed-strip">
+        <div class="flex flex-col items-center pt-2 h-full">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-icon-button
-                name="chevron-left"
-                label="Expand properties panel"
-                onclick={onToggleCollapse}
-            ></sl-icon-button>
+            <button class="btn-icon hover:preset-tonal" title="Expand properties panel" onclick={onToggleCollapse}>
+                <ChevronLeftIcon class="size-4" />
+            </button>
         </div>
     {:else}
-        <div class="panel-header">
-            <span class="panel-title">{panelTitle}</span>
-            <div class="header-right d-flex items-center gap-xs">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-surface-200-800 shrink-0 min-h-10 gap-2">
+            <span class="text-sm font-semibold shrink-0">{panelTitle}</span>
+            <div class="flex items-center gap-2 flex-1 min-w-0 justify-end">
                 {#if buttonLabel}
-                    <sl-badge variant="neutral" pill class="header-badge">{buttonLabel}</sl-badge>
+                    <span class="badge preset-tonal rounded-full truncate">{buttonLabel}</span>
                 {/if}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <sl-icon-button
-                    name="chevron-right"
-                    label="Collapse properties panel"
-                    onclick={onToggleCollapse}
-                ></sl-icon-button>
+                <button class="btn-icon hover:preset-tonal shrink-0" title="Collapse properties panel" onclick={onToggleCollapse}>
+                    <ChevronRightIcon class="size-4" />
+                </button>
             </div>
         </div>
 
-        <div class="panel-body">
-            <div class="selection-section">
+        <div class="flex-1 overflow-y-auto flex flex-col">
+            <div class="p-4 flex-1">
                 {#if selection?.type === 'screen'}
                     <ScreenInspector state={activeState} {remoteConfig} onUpdate={onStateUpdate} onConfigUpdate={onConfigUpdate ?? (() => {})} />
                 {:else if selection?.type === 'button' && activeButton}
@@ -82,102 +76,23 @@
                         onConfigUpdate={onConfigUpdate ?? (() => {})}
                     />
                 {:else}
-                    <p class="placeholder">Select a button or the screen to view its properties.</p>
+                    <p class="text-sm text-surface-500-400 text-center mt-8">Select a button or the screen to view its properties.</p>
                 {/if}
             </div>
         </div>
 
-        <div class="panel-footer">
+        <div class="p-3 border-t border-surface-200-800 shrink-0">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <sl-button
-                size="small"
-                variant="primary"
-                style="width: 100%;"
+            <button
+                class="btn btn-sm preset-filled-primary-500 w-full"
                 disabled={!selection}
                 onclick={onClearSelection}
-            >Done</sl-button>
+            >Done</button>
         </div>
     {/if}
 </aside>
 
 <style>
-    .inspector {
-        display: flex;
-        flex-direction: column;
-        border-left: 1px solid var(--color-border);
-        background: var(--color-surface);
-        flex-shrink: 0;
-        overflow: hidden;
-    }
-
-    .inspector.collapsed {
-        width: 2.5rem;
-    }
-
-    .collapsed-strip {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding-top: var(--sl-spacing-x-small);
-        height: 100%;
-    }
-
-    .panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--sl-spacing-x-small) var(--sl-spacing-x-small) var(--sl-spacing-x-small) var(--sl-spacing-medium);
-        border-bottom: 1px solid var(--color-border);
-        flex-shrink: 0;
-        min-height: 2.5rem;
-        gap: var(--sl-spacing-x-small);
-    }
-
-    .panel-title {
-        font-family: var(--font-sans);
-        font-size: var(--sl-font-size-small);
-        font-weight: var(--sl-font-weight-semibold);
-        color: var(--color-text-primary);
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .header-right {
-        flex: 1;
-        min-width: 0;
-        justify-content: flex-end;
-    }
-
-    .header-badge {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .panel-body {
-        flex: 1;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .selection-section {
-        padding: var(--sl-spacing-medium);
-        flex: 1;
-    }
-
-    .panel-footer {
-        padding: var(--sl-spacing-small) var(--sl-spacing-medium);
-        border-top: 1px solid var(--color-border);
-        flex-shrink: 0;
-    }
-
-    .placeholder {
-        margin: var(--sl-spacing-2x-large) 0 0;
-        color: var(--color-text-secondary);
-        font-size: var(--sl-font-size-small);
-        text-align: center;
-    }
+    .inspector.collapsed { width: 2.5rem; }
 </style>

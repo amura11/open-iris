@@ -1,13 +1,9 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
-    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
-    import '@shoelace-style/shoelace/dist/components/switch/switch.js';
-    import '@shoelace-style/shoelace/dist/components/input/input.js';
-    import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.component.js';
+    import { ArrowUpIcon, ArrowDownIcon, Trash2Icon } from '@lucide/svelte';
+    import { Dialog, Portal, Switch } from '@skeletonlabs/skeleton-svelte';
+    import { untrack } from 'svelte';
     import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State } from '@model/state.ts';
-    import { untrack } from 'svelte';
     import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
     import ActionPicker from './ActionPicker.svelte';
 
@@ -25,15 +21,11 @@
 
     let { open, devices, functions, states, initialSteps, initialName, initialDelayMs, onConfirm, onCancel }: Props = $props();
 
-    let dialogEl: SlDialog | null = $state(null);
     let steps = $state<ActionPickerSelection[]>([]);
     let saveAsReusable = $state(false);
     let sequenceName = $state('');
     let delayMs = $state(200);
     let pickerKey = $state(0);
-    // Tracks whether the user's action (confirm or cancel button) was already handled,
-    // so onsl-after-hide only fires onCancel for Escape / X-button closes.
-    let justHandled = false;
 
     $effect(() => {
         if (open) {
@@ -42,9 +34,6 @@
             saveAsReusable = !!initialName;
             delayMs = initialDelayMs ?? 200;
             untrack(() => { pickerKey++; });
-            dialogEl?.show();
-        } else {
-            dialogEl?.hide();
         }
     });
 
@@ -86,146 +75,142 @@
     }
 
     function handleConfirm() {
-        justHandled = true;
         onConfirm({
             steps,
             name: saveAsReusable && sequenceName.trim() ? sequenceName.trim() : undefined,
             delayMs,
         });
-        dialogEl?.hide();
-    }
-
-    function handleCancelClick() {
-        justHandled = true;
-        onCancel();
-        dialogEl?.hide();
-    }
-
-    function handleAfterHide() {
-        if (!justHandled) {
-            onCancel();
-        }
-        justHandled = false;
     }
 </script>
 
-<sl-dialog
-    bind:this={dialogEl}
-    label="Multi-action sequence"
-    class="sequence-dialog"
-    onsl-after-hide={handleAfterHide}
+<Dialog
+    open={open}
+    onOpenChange={(details) => { if (!details.open) onCancel(); }}
 >
-    <div class="d-flex h-full overflow-hidden">
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+            <Dialog.Content class="card bg-surface-100-900 shadow-xl overflow-hidden flex flex-col w-[min(760px,92vw)] h-[min(520px,85vh)] p-0">
 
-        <!-- ── Left: sequence steps ───────────────────────────────────────── -->
-        <div class="steps-panel d-flex flex-col border-right overflow-hidden shrink-0">
+                <div class="flex flex-1 overflow-hidden">
 
-            <!-- Naming + delay settings -->
-            <div class="p-m border-bottom shrink-0">
-                <sl-switch
-                    checked={saveAsReusable}
-                    onsl-change={(e: Event) => { saveAsReusable = (e.target as HTMLInputElement).checked; }}
-                >Save as reusable</sl-switch>
+                    <!-- ── Left: sequence steps ───────────────────────────────────────── -->
+                    <div class="steps-panel flex flex-col border-r border-surface-200-800 overflow-hidden shrink-0">
 
-                {#if saveAsReusable}
-                    <sl-input
-                        class="mt-s"
-                        size="small"
-                        placeholder="Sequence name…"
-                        value={sequenceName}
-                        oninput={(e: Event) => { sequenceName = (e.target as HTMLInputElement).value; }}
-                    ></sl-input>
-                {/if}
+                        <div class="p-4 border-b border-surface-200-800 shrink-0 flex flex-col gap-3">
+                            <Switch
+                                checked={saveAsReusable}
+                                onCheckedChange={(details) => { saveAsReusable = details.checked; }}
+                            >
+                                <Switch.Control class="switch">
+                                    <Switch.Thumb class="thumb" />
+                                </Switch.Control>
+                                <Switch.Label class="text-sm">Save as reusable</Switch.Label>
+                                <Switch.HiddenInput />
+                            </Switch>
 
-                <sl-input
-                    class="mt-s"
-                    size="small"
-                    label="Delay between steps"
-                    type="number"
-                    value={String(delayMs)}
-                    min="0"
-                    step="50"
-                    oninput={(e: Event) => {
-                        const n = parseInt((e.target as HTMLInputElement).value, 10);
-                        delayMs = isNaN(n) ? 200 : Math.max(0, n);
-                    }}
-                >
-                    <span slot="suffix" class="text-xs text-muted">ms</span>
-                </sl-input>
-            </div>
+                            {#if saveAsReusable}
+                                <input
+                                    class="input"
+                                    placeholder="Sequence name…"
+                                    value={sequenceName}
+                                    oninput={(e: Event) => { sequenceName = (e.target as HTMLInputElement).value; }}
+                                />
+                            {/if}
 
-            <!-- Step list -->
-            <div class="flex-1 overflow-y-auto p-m d-flex flex-col gap-2xs">
-                {#if steps.length > 0}
-                    {#each steps as step, index (index)}
-                        <div class="step-row d-flex items-center gap-2xs px-xs py-2xs rounded-s">
-                            <span class="step-index text-xs text-muted shrink-0">{index + 1}</span>
-                            <span class="text-s flex-1 min-w-0 truncate">{stepLabel(step)}</span>
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <sl-icon-button
-                                name="arrow-up"
-                                label="Move up"
-                                disabled={index === 0}
-                                onclick={() => handleMoveUp(index)}
-                            ></sl-icon-button>
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <sl-icon-button
-                                name="arrow-down"
-                                label="Move down"
-                                disabled={index === steps.length - 1}
-                                onclick={() => handleMoveDown(index)}
-                            ></sl-icon-button>
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <sl-icon-button
-                                name="trash"
-                                label="Remove"
-                                onclick={() => handleRemoveStep(index)}
-                            ></sl-icon-button>
+                            <label class="label">
+                                <span class="label-text">Delay between steps</span>
+                                <div class="input-group">
+                                    <input
+                                        class="ig-input"
+                                        type="number"
+                                        value={String(delayMs)}
+                                        min="0"
+                                        step="50"
+                                        oninput={(e: Event) => {
+                                            const n = parseInt((e.target as HTMLInputElement).value, 10);
+                                            delayMs = isNaN(n) ? 200 : Math.max(0, n);
+                                        }}
+                                    />
+                                    <div class="ig-cell text-xs text-surface-500-400">ms</div>
+                                </div>
+                            </label>
                         </div>
-                    {/each}
-                {:else}
-                    <p class="text-s text-muted m-0 text-center mt-m">No actions yet.<br>Pick one from the right.</p>
-                {/if}
-            </div>
-        </div>
 
-        <!-- ── Right: action picker ───────────────────────────────────────── -->
-        <div class="picker-panel flex-1 overflow-y-auto p-m">
-            {#key pickerKey}
-                <ActionPicker {devices} {functions} {states} onSelect={handleAddStep} />
-            {/key}
-        </div>
+                        <!-- Step list -->
+                        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
+                            {#if steps.length > 0}
+                                {#each steps as step, index (index)}
+                                    <div class="step-row flex items-center gap-1 px-2 py-1 rounded">
+                                        <span class="step-index text-xs text-surface-500-400 shrink-0">{index + 1}</span>
+                                        <span class="text-sm flex-1 min-w-0 truncate">{stepLabel(step)}</span>
+                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <button
+                                            class="btn-icon hover:preset-tonal"
+                                            title="Move up"
+                                            disabled={index === 0}
+                                            onclick={() => handleMoveUp(index)}
+                                        >
+                                            <ArrowUpIcon class="size-3" />
+                                        </button>
+                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <button
+                                            class="btn-icon hover:preset-tonal"
+                                            title="Move down"
+                                            disabled={index === steps.length - 1}
+                                            onclick={() => handleMoveDown(index)}
+                                        >
+                                            <ArrowDownIcon class="size-3" />
+                                        </button>
+                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <button
+                                            class="btn-icon hover:preset-tonal"
+                                            title="Remove"
+                                            onclick={() => handleRemoveStep(index)}
+                                        >
+                                            <Trash2Icon class="size-3" />
+                                        </button>
+                                    </div>
+                                {/each}
+                            {:else}
+                                <p class="text-sm text-surface-500-400 m-0 text-center mt-4">No actions yet.<br>Pick one from the right.</p>
+                            {/if}
+                        </div>
+                    </div>
 
-    </div>
+                    <!-- ── Right: action picker ───────────────────────────────────────── -->
+                    <div class="flex-1 overflow-y-auto p-4">
+                        {#key pickerKey}
+                            <ActionPicker {devices} {functions} {states} onSelect={handleAddStep} />
+                        {/key}
+                    </div>
 
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button slot="footer" variant="text" onclick={handleCancelClick}>Cancel</sl-button>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <sl-button slot="footer" variant="primary" disabled={steps.length < 2} onclick={handleConfirm}>Confirm</sl-button>
-</sl-dialog>
+                </div>
+
+                <footer class="flex justify-end gap-2 p-3 border-t border-surface-200-800 shrink-0">
+                    <Dialog.CloseTrigger class="btn hover:preset-tonal">Cancel</Dialog.CloseTrigger>
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <button
+                        class="btn preset-filled-primary-500"
+                        disabled={steps.length < 2}
+                        onclick={handleConfirm}
+                    >Confirm</button>
+                </footer>
+
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>
 
 <style>
-    .sequence-dialog::part(panel) {
-        width: min(760px, 92vw);
-        height: min(520px, 85vh);
-    }
-
-    .sequence-dialog::part(body) {
-        padding: 0;
-        overflow: hidden;
-    }
-
-    .steps-panel {
-        width: 320px;
-    }
+    .steps-panel { width: 320px; }
 
     .step-row {
-        border: 1px solid var(--color-border);
+        border: 1px solid light-dark(var(--color-surface-200), var(--color-surface-700));
     }
 
     .step-index {

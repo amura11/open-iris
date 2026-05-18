@@ -1,7 +1,4 @@
 <script lang="ts">
-    import '@shoelace-style/shoelace/dist/components/select/select.js';
-    import '@shoelace-style/shoelace/dist/components/option/option.js';
-    import '@shoelace-style/shoelace/dist/components/button/button.js';
     import type { State } from '@model/state.ts';
 
     interface Props {
@@ -16,30 +13,27 @@
 
     function handleConfirm() {
         const id = Number(selectedStateId);
-
-        if (id) {
-            onConfirm(id);
-        }
+        if (id) onConfirm(id);
     }
 </script>
 
-<div class="d-flex flex-col gap-xs">
-    <sl-select
-        size="small"
-        placeholder="Select target state…"
+<div class="flex flex-col gap-2">
+    <select
+        class="select"
         value={selectedStateId}
-        onsl-change={(e: Event) => { selectedStateId = (e.target as HTMLSelectElement).value; }}
+        onchange={(e: Event) => { selectedStateId = (e.target as HTMLSelectElement).value; }}
     >
+        <option value="" disabled selected>Select target state…</option>
         {#each states as state (state.id)}
-            <sl-option value={String(state.id)}>{state.name}</sl-option>
+            <option value={String(state.id)}>{state.name}</option>
         {/each}
-    </sl-select>
-    <div class="d-flex gap-xs justify-end">
+    </select>
+    <div class="flex gap-2 justify-end">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button size="small" variant="text" onclick={onCancel}>Cancel</sl-button>
+        <button class="btn btn-sm hover:preset-tonal" onclick={onCancel}>Cancel</button>
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <sl-button size="small" variant="primary" disabled={!selectedStateId} onclick={handleConfirm}>Confirm</sl-button>
+        <button class="btn btn-sm preset-filled-primary-500" disabled={!selectedStateId} onclick={handleConfirm}>Confirm</button>
     </div>
 </div>
