@@ -36,35 +36,50 @@ alias 'web:format'='_web_format'
 
 # ── Firmware ─────────────────────────────────────────────────────────────────
 
+_ensure_idf_environment() {
+    if [[ -z "$IDF_PATH" ]]; then
+        echo "→ ESP-IDF not initialized, sourcing now..."
+        source /opt/esp/idf/export.sh
+    fi
+}
+
 _firmware_build() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py build "$@")
 }
 
 _firmware_clean() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py fullclean "$@")
 }
 
 _firmware_flash() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py flash "$@")
 }
 
 _firmware_monitor() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py monitor "$@")
 }
 
 _firmware_flash_monitor() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py flash monitor "$@")
 }
 
 _firmware_menuconfig() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py menuconfig "$@")
 }
 
 _firmware_size() {
+    _ensure_idf_environment
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py size-components "$@")
 }
 
 _firmware_set_target() {
+    _ensure_idf_environment
     local target="${1:-esp32}"
     (cd "$OPENIRIS_FIRMWARE_DIR" && idf.py set-target "$target")
 }
@@ -145,7 +160,7 @@ OpenIRis dev commands
   firmware:set-target  Set target chip  (default: esp32)
 
   dev:install          Install all project dependencies
-  dev:init             Source ESP-IDF environment (required before firmware commands)
+  dev:init             Source ESP-IDF environment (firmware commands do this automatically)
   dev:help             Show this help
 
 Extra arguments are forwarded to the underlying tool, e.g.:
