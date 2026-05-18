@@ -99,7 +99,7 @@
 
     function assignMultiActionSequence(result: SequenceEditorConfirmation) {
         const previousAssignment = button.assignment ?? null;
-        const updated = buildMultiActionConfig(result.steps, result.name, previousAssignment, remoteConfig, applyAssignment);
+        const updated = buildMultiActionConfig(result.steps, result.name, result.delayMs, previousAssignment, remoteConfig, applyAssignment);
         isChangingAssignment = false;
         isAssigning = false;
         sequenceEditorOpen = false;
@@ -114,6 +114,7 @@
         const updatedMeta: SequenceMetadata = {
             sequenceId: currentSequence.id,
             name: result.name ?? currentSequenceMeta?.name,
+            ...(result.delayMs !== 200 ? { delayMs: result.delayMs } : {}),
         };
 
         const updatedConfig: RemoteConfig = {

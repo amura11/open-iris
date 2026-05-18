@@ -22,14 +22,15 @@
     import type { CatalogDevice } from '@catalog/catalog-source.ts';
     import RemotePreview from '@components/RemotePreview.svelte';
     import InspectorPanel from '@components/InspectorPanel.svelte';
+    import StateEditDialog from '@components/StateEditDialog.svelte';
     import DeviceDiscoveryDialog from '@components/DeviceDiscoveryDialog.svelte';
 
     let layout = $state<RemoteLayout | null>(null);
     let remoteConfig = $state<RemoteConfig>({
-        rootStateId: 1,
+        rootStateId: 0,
         states: [{
-            id: 1,
-            name: 'Root',
+            id: 0,
+            name: 'Home',
             stateType: 'root',
             screenButtons: [],
             physicalButtons: [],
@@ -54,18 +55,25 @@
     let loadError   = $state<string | null>(null);
     let importError = $state<string | null>(null);
 
-    let selectedStateId = $state(1); // mirrors initial remoteConfig.rootStateId
+    let selectedStateId = $state(0); // mirrors initial remoteConfig.rootStateId
     let selectedState   = $derived(
         remoteConfig.states.find(s => s.id === selectedStateId) ?? remoteConfig.states[0]
     );
 
     let selection      = $state<Selection>(null);
-    let panelWidth     = $state(300);
+    let panelWidth     = $state(Math.min(600, Math.round(window.innerWidth / 3)));
     let panelCollapsed = $state(false);
 
-    let nameInputFocusTrigger = $state(0);
+    let stateEditOpen = $state(false);
+    let stateEditMode = $state<'create' | 'edit'>('edit');
+    let stateEditInitial = $state<State>({
+        id: -1, name: 'New State', stateType: 'persistent',
+        screenButtons: [], physicalButtons: [],
+        onActivate: null, onDeactivate: null,
+        buttonFallback: false, activeDevices: [],
+    });
     let deleteDialogEl: SlDialog | null = $state(null);
-    let pendingDeleteName      = $state('');
+    let pendingDeleteName = $state('');
 
     function togglePanel() {
         panelCollapsed = !panelCollapsed;
@@ -122,22 +130,40 @@
     }
 
     function handleStateAdd() {
-        const [newId, configWithId] = consumeId(remoteConfig, 'state');
-        const newState: State = {
-            id: newId,
-            name: 'New State',
-            stateType: 'persistent',
-            screenButtons: [],
-            physicalButtons: [],
-            onActivate: null,
-            onDeactivate: null,
-            buttonFallback: false,
-            activeDevices: [],
+        stateEditInitial = {
+            id: -1, name: 'New State', stateType: 'persistent',
+            screenButtons: [], physicalButtons: [],
+            onActivate: null, onDeactivate: null,
+            buttonFallback: false, activeDevices: [],
         };
-        remoteConfig = { ...configWithId, states: [...configWithId.states, newState] };
-        selectedStateId = newId;
-        selection = null;
-        nameInputFocusTrigger++;
+        stateEditMode = 'create';
+        stateEditOpen = true;
+    }
+
+    function handleStateEdit() {
+        stateEditInitial = { ...selectedState };
+        stateEditMode = 'edit';
+        stateEditOpen = true;
+    }
+
+    function handleStateEditConfirm(draft: State) {
+        if (stateEditMode === 'create') {
+            const [newId, configWithId] = consumeId(remoteConfig, 'state');
+            const newState: State = { ...draft, id: newId };
+            remoteConfig = { ...configWithId, states: [...configWithId.states, newState] };
+            selectedStateId = newId;
+            selection = null;
+        } else {
+            remoteConfig = {
+                ...remoteConfig,
+                states: remoteConfig.states.map(s => s.id === draft.id ? draft : s),
+            };
+        }
+        stateEditOpen = false;
+    }
+
+    function handleStateEditCancel() {
+        stateEditOpen = false;
     }
 
     function handleStateDelete() {
@@ -319,6 +345,13 @@
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <sl-icon-button
+                name="pencil"
+                label="Edit state"
+                onclick={handleStateEdit}
+            ></sl-icon-button>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <sl-icon-button
                 name="trash"
                 label="Delete state"
                 disabled={selectedState.stateType === 'root'}
@@ -346,9 +379,11 @@
             <RemotePreview
                 {layout}
                 config={remoteConfig}
+                activeState={selectedState}
                 {selection}
                 onScreenClick={handleScreenClick}
                 onButtonClick={handleButtonClick}
+                onEmptyClick={() => { selection = null; }}
             />
             {#if !panelCollapsed}
                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -366,7 +401,6 @@
                 {remoteConfig}
                 width={panelWidth}
                 collapsed={panelCollapsed}
-                focusTrigger={nameInputFocusTrigger}
                 onStateUpdate={handleStateUpdate}
                 onConfigUpdate={handleConfigUpdate}
                 onToggleCollapse={togglePanel}
@@ -399,6 +433,14 @@
         installedMeta={remoteConfig.metadata.deviceMetadata}
         onAdd={handleDeviceAdd}
         onRemove={handleDeviceRemove}
+    />
+
+    <StateEditDialog
+        open={stateEditOpen}
+        mode={stateEditMode}
+        initialState={stateEditInitial}
+        onConfirm={handleStateEditConfirm}
+        onCancel={handleStateEditCancel}
     />
 
     <sl-dialog bind:this={deleteDialogEl} label="Delete State?">

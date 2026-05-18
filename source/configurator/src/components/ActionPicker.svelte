@@ -1,6 +1,7 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/input/input.js';
     import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+    import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
     import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
@@ -17,23 +18,33 @@
         kind: 'navigate' | 'pause' | 'power_off_active';
     }
 
-    type PickerItem = DeviceItem | SystemItem;
-
-    interface Props {
-        devices:   Device[];
-        functions: DeviceFunction[];
-        states:    State[];
-        onSelect:  (selection: ActionPickerSelection) => void;
+    interface NamedSequenceItem {
+        kind: 'named_sequence';
+        sequenceId: number;
+        name: string;
     }
 
-    let { devices, functions, states, onSelect }: Props = $props();
+    type PickerItem = DeviceItem | SystemItem | NamedSequenceItem;
 
-    let filterQuery   = $state('');
+    interface Props {
+        devices:          Device[];
+        functions:        DeviceFunction[];
+        states:           State[];
+        mode?:            'single' | 'sequence';
+        selectedKey?:     string;
+        namedSequences?:  Array<{ sequenceId: number; name: string }>;
+        onSelect:         (selection: ActionPickerSelection) => void;
+        onSelectNamed?:   (sequenceId: number) => void;
+    }
+
+    let { devices, functions, states, mode = 'single', selectedKey, namedSequences = [], onSelect, onSelectNamed }: Props = $props();
+
+    let filterQuery    = $state('');
     let expandedEditor = $state<'navigate' | 'pause' | null>(null);
 
     const systemItemLabels: Record<'navigate' | 'pause' | 'power_off_active', string> = {
-        navigate:        'Navigate',
-        pause:           'Pause',
+        navigate:         'Navigate',
+        pause:            'Pause',
         power_off_active: 'Power off active devices',
     };
 
@@ -50,12 +61,15 @@
             { kind: 'power_off_active' },
         ];
 
-        return [...deviceItems, ...systemItems];
+        const namedItems: NamedSequenceItem[] = mode === 'single'
+            ? namedSequences.map(s => ({ kind: 'named_sequence' as const, sequenceId: s.sequenceId, name: s.name }))
+            : [];
+
+        return [...deviceItems, ...systemItems, ...namedItems];
     });
 
     let visibleItems = $derived.by((): PickerItem[] => {
         const query = filterQuery.trim().toLowerCase();
-
         if (!query) return allItems;
 
         return allItems.filter(item => {
@@ -63,26 +77,47 @@
                 return item.deviceFunction.name.toLowerCase().includes(query) ||
                     item.device.name.toLowerCase().includes(query);
             }
+            if (item.kind === 'named_sequence') {
+                return item.name.toLowerCase().includes(query);
+            }
             return systemItemLabels[item.kind].toLowerCase().includes(query);
         });
     });
 
     function itemLabel(item: PickerItem): string {
         if (item.kind === 'device') return item.deviceFunction.name;
+        if (item.kind === 'named_sequence') return item.name;
         return systemItemLabels[item.kind];
     }
 
     function itemSublabel(item: PickerItem): string {
         if (item.kind === 'device') return item.device.name;
+        if (item.kind === 'named_sequence') return 'Saved sequence';
         return 'System';
     }
 
     function itemKey(item: PickerItem): string {
         if (item.kind === 'device') return `device:${item.device.id}:${item.deviceFunction.id}`;
+        if (item.kind === 'named_sequence') return `named:${item.sequenceId}`;
         return `system:${item.kind}`;
     }
 
-    function handleItemClick(item: PickerItem) {
+    function handleRowClick(item: PickerItem) {
+        if (mode !== 'single') return;
+        activateItem(item);
+    }
+
+    function handlePlusClick(item: PickerItem) {
+        activateItem(item);
+    }
+
+    function activateItem(item: PickerItem) {
+        if (item.kind === 'named_sequence') {
+            filterQuery = '';
+            onSelectNamed?.(item.sequenceId);
+            return;
+        }
+
         if (item.kind === 'device') {
             filterQuery = '';
             onSelect({ kind: 'device', device: item.device, deviceFunction: item.deviceFunction });
@@ -138,11 +173,28 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                    class="item-row d-flex items-center justify-between px-xs py-2xs cursor-pointer"
-                    onclick={() => handleItemClick(item)}
+                    class="item-row d-flex items-center px-xs py-2xs"
+                    class:cursor-pointer={mode === 'single'}
+                    class:selected={mode === 'single' && selectedKey === itemKey(item)}
+                    class:named-sequence-row={item.kind === 'named_sequence'}
+                    onclick={() => handleRowClick(item)}
                 >
-                    <span class="text-s">{itemLabel(item)}</span>
-                    <span class="text-xs text-muted">{itemSublabel(item)}</span>
+                    {#if item.kind === 'named_sequence'}
+                        <sl-icon name="collection-play" class="text-xs text-muted shrink-0 mr-2xs"></sl-icon>
+                    {/if}
+                    <span class="text-s flex-1">{itemLabel(item)}</span>
+                    <span class="text-xs sublabel">{itemSublabel(item)}</span>
+                    {#if mode === 'single'}
+                        <sl-icon
+                            name="check2"
+                            class="check-icon text-s ml-xs"
+                            style="visibility: {selectedKey === itemKey(item) ? 'visible' : 'hidden'};"
+                        ></sl-icon>
+                    {:else}
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <button class="plus-btn ml-xs" onclick={(e) => { e.stopPropagation(); handlePlusClick(item); }}>+</button>
+                    {/if}
                 </div>
             {/each}
         </div>
@@ -168,7 +220,57 @@
         border-bottom: none;
     }
 
-    .item-row:hover {
+    .item-row.cursor-pointer:hover {
         background: var(--sl-color-neutral-50);
+    }
+
+    .item-row.selected {
+        background: var(--sl-color-primary-50);
+    }
+
+    .named-sequence-row {
+        background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+    }
+
+    .named-sequence-row:hover {
+        background: color-mix(in srgb, var(--color-accent) 12%, transparent) !important;
+    }
+
+    .named-sequence-row.selected {
+        background: color-mix(in srgb, var(--color-accent) 14%, var(--sl-color-primary-50));
+    }
+
+    .sublabel {
+        color: var(--color-text-secondary);
+    }
+
+    .named-sequence-row .sublabel {
+        color: var(--color-accent);
+        opacity: 0.85;
+    }
+
+    .plus-btn {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid var(--color-border);
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--color-text-secondary);
+        font-size: 14px;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: background-color 0.1s, color 0.1s;
+        padding: 0;
+        font-family: inherit;
+    }
+
+    .plus-btn:hover {
+        background: var(--sl-color-primary-100);
+        color: var(--color-primary);
+        border-color: var(--color-primary);
     }
 </style>

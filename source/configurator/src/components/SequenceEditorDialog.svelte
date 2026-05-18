@@ -12,22 +12,24 @@
     import ActionPicker from './ActionPicker.svelte';
 
     interface Props {
-        open:          boolean;
-        devices:       Device[];
-        functions:     DeviceFunction[];
-        states:        State[];
-        initialSteps?: ActionPickerSelection[];
-        initialName?:  string;
-        onConfirm:     (result: SequenceEditorConfirmation) => void;
-        onCancel:      () => void;
+        open:           boolean;
+        devices:        Device[];
+        functions:      DeviceFunction[];
+        states:         State[];
+        initialSteps?:  ActionPickerSelection[];
+        initialName?:   string;
+        initialDelayMs?: number;
+        onConfirm:      (result: SequenceEditorConfirmation) => void;
+        onCancel:       () => void;
     }
 
-    let { open, devices, functions, states, initialSteps, initialName, onConfirm, onCancel }: Props = $props();
+    let { open, devices, functions, states, initialSteps, initialName, initialDelayMs, onConfirm, onCancel }: Props = $props();
 
     let dialogEl: SlDialog | null = $state(null);
     let steps = $state<ActionPickerSelection[]>([]);
     let saveAsReusable = $state(false);
     let sequenceName = $state('');
+    let delayMs = $state(200);
     let pickerKey = $state(0);
     // Tracks whether the user's action (confirm or cancel button) was already handled,
     // so onsl-after-hide only fires onCancel for Escape / X-button closes.
@@ -38,6 +40,7 @@
             steps = initialSteps ? [...initialSteps] : [];
             sequenceName = initialName ?? '';
             saveAsReusable = !!initialName;
+            delayMs = initialDelayMs ?? 200;
             untrack(() => { pickerKey++; });
             dialogEl?.show();
         } else {
@@ -87,6 +90,7 @@
         onConfirm({
             steps,
             name: saveAsReusable && sequenceName.trim() ? sequenceName.trim() : undefined,
+            delayMs,
         });
         dialogEl?.hide();
     }
@@ -116,7 +120,7 @@
         <!-- ── Left: sequence steps ───────────────────────────────────────── -->
         <div class="steps-panel d-flex flex-col border-right overflow-hidden shrink-0">
 
-            <!-- Naming — at the top so it's set before building the sequence -->
+            <!-- Naming + delay settings -->
             <div class="p-m border-bottom shrink-0">
                 <sl-switch
                     checked={saveAsReusable}
@@ -132,6 +136,22 @@
                         oninput={(e: Event) => { sequenceName = (e.target as HTMLInputElement).value; }}
                     ></sl-input>
                 {/if}
+
+                <sl-input
+                    class="mt-s"
+                    size="small"
+                    label="Delay between steps"
+                    type="number"
+                    value={String(delayMs)}
+                    min="0"
+                    step="50"
+                    oninput={(e: Event) => {
+                        const n = parseInt((e.target as HTMLInputElement).value, 10);
+                        delayMs = isNaN(n) ? 200 : Math.max(0, n);
+                    }}
+                >
+                    <span slot="suffix" class="text-xs text-muted">ms</span>
+                </sl-input>
             </div>
 
             <!-- Step list -->

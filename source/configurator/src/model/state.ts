@@ -26,6 +26,7 @@ export interface State {
 export interface SequenceMetadata {
     sequenceId: SequenceId;
     name?:      string;
+    delayMs?:   number;
 }
 
 export interface DeviceMetadata {

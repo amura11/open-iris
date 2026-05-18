@@ -1,9 +1,10 @@
 <script lang="ts">
     import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+    import '@shoelace-style/shoelace/dist/components/button/button.js';
+    import '@shoelace-style/shoelace/dist/components/badge/badge.js';
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
-    import StateSettings from '@components/StateSettings.svelte';
     import ScreenInspector from '@components/ScreenInspector.svelte';
     import ButtonInspector from '@components/ButtonInspector.svelte';
 
@@ -14,24 +15,26 @@
         remoteConfig: RemoteConfig;
         width: number;
         collapsed: boolean;
-        focusTrigger?: number;
         onStateUpdate?: (updated: State) => void;
         onConfigUpdate?: (updated: RemoteConfig) => void;
         onToggleCollapse?: () => void;
         onClearSelection?: () => void;
     }
 
-    let { selection, layout, activeState, remoteConfig, width, collapsed, focusTrigger = 0, onStateUpdate, onConfigUpdate, onToggleCollapse, onClearSelection }: Props = $props();
-
-    const panelTitle = 'Properties';
+    let { selection, layout, activeState, remoteConfig, width, collapsed, onStateUpdate, onConfigUpdate, onToggleCollapse, onClearSelection }: Props = $props();
 
     let activeButton = $derived.by(() => {
-        const sel = selection;
-        if (sel?.type !== 'button') {
-            return null;
-        }
-        return layout.buttons.find(b => b.buttonCode === sel.buttonCode) ?? null;
+        if (selection?.type !== 'button') return null;
+        return layout.buttons.find(b => b.buttonCode === selection.buttonCode) ?? null;
     });
+
+    let panelTitle = $derived(
+        selection?.type === 'button' ? 'Assign Button' :
+        selection?.type === 'screen' ? 'Screen' :
+        'Properties'
+    );
+
+    let buttonLabel = $derived(activeButton?.friendlyName ?? activeButton?.buttonCode ?? null);
 </script>
 
 <aside
@@ -52,15 +55,9 @@
     {:else}
         <div class="panel-header">
             <span class="panel-title">{panelTitle}</span>
-            <div class="header-actions">
-                {#if selection}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <sl-icon-button
-                        name="x-lg"
-                        label="Clear selection"
-                        onclick={onClearSelection}
-                    ></sl-icon-button>
+            <div class="header-right d-flex items-center gap-xs">
+                {#if buttonLabel}
+                    <sl-badge variant="neutral" pill class="header-badge">{buttonLabel}</sl-badge>
                 {/if}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -73,16 +70,6 @@
         </div>
 
         <div class="panel-body">
-            <div class="state-section">
-                <StateSettings
-                    activeState={activeState}
-                    focusTrigger={focusTrigger}
-                    onUpdate={onStateUpdate}
-                />
-            </div>
-
-            <hr class="section-divider" />
-
             <div class="selection-section">
                 {#if selection?.type === 'screen'}
                     <ScreenInspector state={activeState} {remoteConfig} onUpdate={onStateUpdate} onConfigUpdate={onConfigUpdate ?? (() => {})} />
@@ -98,6 +85,18 @@
                     <p class="placeholder">Select a button or the screen to view its properties.</p>
                 {/if}
             </div>
+        </div>
+
+        <div class="panel-footer">
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <sl-button
+                size="small"
+                variant="primary"
+                style="width: 100%;"
+                disabled={!selection}
+                onclick={onClearSelection}
+            >Done</sl-button>
         </div>
     {/if}
 </aside>
@@ -132,6 +131,7 @@
         border-bottom: 1px solid var(--color-border);
         flex-shrink: 0;
         min-height: 2.5rem;
+        gap: var(--sl-spacing-x-small);
     }
 
     .panel-title {
@@ -140,16 +140,20 @@
         font-weight: var(--sl-font-weight-semibold);
         color: var(--color-text-primary);
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        flex: 1;
-        min-width: 0;
+        flex-shrink: 0;
     }
 
-    .header-actions {
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
+    .header-right {
+        flex: 1;
+        min-width: 0;
+        justify-content: flex-end;
+    }
+
+    .header-badge {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .panel-body {
@@ -159,21 +163,15 @@
         flex-direction: column;
     }
 
-    .state-section {
-        padding: var(--sl-spacing-medium);
-        flex-shrink: 0;
-    }
-
-    .section-divider {
-        border: none;
-        border-top: 1px solid var(--color-border);
-        margin: 0;
-        flex-shrink: 0;
-    }
-
     .selection-section {
         padding: var(--sl-spacing-medium);
         flex: 1;
+    }
+
+    .panel-footer {
+        padding: var(--sl-spacing-small) var(--sl-spacing-medium);
+        border-top: 1px solid var(--color-border);
+        flex-shrink: 0;
     }
 
     .placeholder {

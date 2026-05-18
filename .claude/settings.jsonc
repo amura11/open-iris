@@ -1,0 +1,137 @@
+{
+  "permissions": {
+
+    // Commands Claude may run without prompting.
+    "allow": [
+
+      // ── Filesystem navigation & inspection ──────────────────────────────────
+      "Bash(ls)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(stat *)",
+      "Bash(file *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(diff *)",
+
+      // ── File & directory management ─────────────────────────────────────────
+      // rm/rmdir intentionally omitted — see "ask" below.
+      "Bash(mkdir *)",
+      "Bash(touch *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(chmod *)",
+      "Bash(tar *)",
+      "Bash(zip *)",
+      "Bash(unzip *)",
+
+      // ── Text processing ─────────────────────────────────────────────────────
+      "Bash(cat *)",
+      "Bash(echo *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(cut *)",
+      "Bash(tr *)",
+      "Bash(tee *)",
+      "Bash(xargs *)",
+      "Bash(jq *)",
+
+      // ── System & environment ────────────────────────────────────────────────
+      "Bash(env)",
+      "Bash(printenv *)",
+      "Bash(export *)",
+      "Bash(source *)",
+
+      // ── Network ─────────────────────────────────────────────────────────────
+      // Fetching package info and docs is safe; posting/uploading is not restricted
+      // here but should be rare in practice.
+      "Bash(curl *)",
+      "Bash(wget *)",
+
+      // ── Node / npm ──────────────────────────────────────────────────────────
+      // Only explicit safe subcommands are allowed. publish/exec/link/etc. will prompt.
+      "Bash(node *)",
+      "Bash(npm install)",
+      "Bash(npm install *)",
+      "Bash(npm ci)",
+      "Bash(npm ci *)",
+      "Bash(npm run *)",
+      "Bash(npm list)",
+      "Bash(npm list *)",
+      "Bash(npm outdated)",
+      "Bash(npm outdated *)",
+      "Bash(npm audit)",
+      "Bash(npm audit *)",
+      "Bash(npm info *)",
+      "Bash(npm fund)",
+      "Bash(npm version)",
+
+      // npx restricted to known project tools; arbitrary package execution will prompt.
+      "Bash(npx svelte-check *)",
+      "Bash(npx prettier *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vite *)",
+
+      // ── Python ─────────────────────────────────────────────────────────────
+      // Used primarily by ESP-IDF tooling.
+      "Bash(python *)",
+      "Bash(python3 *)",
+
+      // ── ESP-IDF firmware tooling ────────────────────────────────────────────
+      "Bash(idf.py *)",
+
+      // ── Git — read-only & local operations ─────────────────────────────────
+      // push intentionally omitted — see "ask" below.
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git log)",
+      "Bash(git log *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git blame *)",
+      "Bash(git branch)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git reset *)",
+      "Bash(git restore *)",
+      "Bash(git tag *)",
+      "Bash(git -C *)"
+    ],
+
+    // Commands that require explicit user approval before running.
+    "ask": [
+
+      // ── Deletion ─────────────────────────────────────────────────────────────
+      "Bash(rm)",
+      "Bash(rm *)",
+      "Bash(rmdir *)",
+
+      // ── Remote / publishing ──────────────────────────────────────────────────
+      "Bash(git push*)",
+      "Bash(npm publish*)",
+      "Bash(npm unpublish *)",
+
+      // ── Privilege escalation ─────────────────────────────────────────────────
+      "Bash(sudo *)",
+
+      // ── Destructive system operations ────────────────────────────────────────
+      "Bash(dd *)",
+      "Bash(mkfs*)"
+    ]
+  }
+}

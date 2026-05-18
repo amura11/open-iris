@@ -164,10 +164,59 @@ export function buildSingleActionConfig(
     return updated;
 }
 
-// Creates a sequence and assigns it; adds SequenceMetadata if name is provided.
+// Updates an existing sequence in place without allocating a new ID.
+export function updateSequenceInPlace(
+    sequenceId: SequenceId,
+    steps: ActionPickerSelection[],
+    name: string | undefined,
+    delayMs: number,
+    config: RemoteConfig,
+    applyAssignment: (config: RemoteConfig, newAssignment: ButtonAssignment) => RemoteConfig
+): RemoteConfig {
+    const actions = steps.map(selectionToAction);
+    const updatedSequence: Sequence = { id: sequenceId, actions };
+
+    let updated: RemoteConfig = {
+        ...config,
+        sequences: config.sequences.map(s => s.id === sequenceId ? updatedSequence : s),
+    };
+
+    const existingMeta = updated.metadata.sequenceMetadata.find(m => m.sequenceId === sequenceId);
+    const needsMeta = !!name || delayMs !== 200;
+
+    if (needsMeta) {
+        const newMeta: SequenceMetadata = {
+            sequenceId,
+            ...(name ? { name } : {}),
+            ...(delayMs !== 200 ? { delayMs } : {}),
+        };
+        updated = {
+            ...updated,
+            metadata: {
+                ...updated.metadata,
+                sequenceMetadata: existingMeta
+                    ? updated.metadata.sequenceMetadata.map(m => m.sequenceId === sequenceId ? newMeta : m)
+                    : [...updated.metadata.sequenceMetadata, newMeta],
+            },
+        };
+    } else if (existingMeta) {
+        updated = {
+            ...updated,
+            metadata: {
+                ...updated.metadata,
+                sequenceMetadata: updated.metadata.sequenceMetadata.filter(m => m.sequenceId !== sequenceId),
+            },
+        };
+    }
+
+    return applyAssignment(updated, { kind: 'sequence', sequenceId });
+}
+
+// Creates a sequence and assigns it; adds SequenceMetadata if name or delayMs is provided.
 export function buildMultiActionConfig(
     steps: ActionPickerSelection[],
     name: string | undefined,
+    delayMs: number,
     previousAssignment: ButtonAssignment | null,
     config: RemoteConfig,
     applyAssignment: (config: RemoteConfig, newAssignment: ButtonAssignment) => RemoteConfig
@@ -181,8 +230,13 @@ export function buildMultiActionConfig(
         sequences: [...configWithId.sequences, newSequence],
     };
 
-    if (name) {
-        const newMeta: SequenceMetadata = { sequenceId: newSequenceId, name };
+    const needsMeta = !!name || delayMs !== 200;
+    if (needsMeta) {
+        const newMeta: SequenceMetadata = {
+            sequenceId: newSequenceId,
+            ...(name ? { name } : {}),
+            ...(delayMs !== 200 ? { delayMs } : {}),
+        };
         updated = {
             ...updated,
             metadata: {

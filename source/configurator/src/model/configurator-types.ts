@@ -10,6 +10,7 @@ export type ActionPickerSelection =
     | { kind: 'power_off_active' };
 
 export interface SequenceEditorConfirmation {
-    steps: ActionPickerSelection[];
-    name: string | undefined;
+    steps:   ActionPickerSelection[];
+    name:    string | undefined;
+    delayMs: number;
 }
