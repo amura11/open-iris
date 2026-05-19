@@ -33,6 +33,8 @@
     );
 
     let buttonLabel = $derived(activeButton?.friendlyName ?? activeButton?.buttonCode ?? null);
+
+    let clearAssignment = $state<(() => void) | null>(null);
 </script>
 
 <aside
@@ -74,6 +76,7 @@
                         {activeState}
                         {remoteConfig}
                         onConfigUpdate={onConfigUpdate ?? (() => {})}
+                        bind:clearAssignment
                     />
                 {:else}
                     <p class="text-sm text-surface-500-400 text-center mt-8">Select a button or the screen to view its properties.</p>
@@ -81,11 +84,19 @@
             </div>
         </div>
 
-        <div class="p-3 border-t border-surface-200-800 shrink-0">
+        <div class="p-3 border-t border-surface-200-800 shrink-0 flex gap-2">
+            {#if clearAssignment}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <button
+                    class="btn btn-sm hover:preset-tonal"
+                    onclick={clearAssignment}
+                >Clear</button>
+            {/if}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <button
-                class="btn btn-sm preset-filled-primary-500 w-full"
+                class="btn btn-sm preset-filled-primary-500 flex-1"
                 disabled={!selection}
                 onclick={onClearSelection}
             >Done</button>

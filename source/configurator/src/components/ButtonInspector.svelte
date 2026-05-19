@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { Trash2Icon } from '@lucide/svelte';
     import type { ButtonDescriptor, RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
@@ -12,14 +11,15 @@
     import ButtonActionPanel from './ButtonActionPanel.svelte';
 
     interface Props {
-        button:         ButtonDescriptor;
-        layout:         RemoteLayout;
-        activeState:    State;
-        remoteConfig:   RemoteConfig;
-        onConfigUpdate: (updated: RemoteConfig) => void;
+        button:              ButtonDescriptor;
+        layout:              RemoteLayout;
+        activeState:         State;
+        remoteConfig:        RemoteConfig;
+        onConfigUpdate:      (updated: RemoteConfig) => void;
+        clearAssignment?:    (() => void) | null;
     }
 
-    let { button, layout, activeState, remoteConfig, onConfigUpdate }: Props = $props();
+    let { button, layout, activeState, remoteConfig, onConfigUpdate, clearAssignment = $bindable(null) }: Props = $props();
 
     let buttonConfig = $derived(
         activeState.physicalButtons.find(b => b.buttonCode === button.buttonCode) ?? null
@@ -88,6 +88,10 @@
         onConfigUpdate(updated);
     }
 
+    $effect(() => {
+        clearAssignment = currentAssignment ? removeAssignment : null;
+    });
+
 </script>
 
 <div class="flex flex-col gap-4">
@@ -105,12 +109,4 @@
         />
     {/key}
 
-    {#if currentAssignment}
-        <hr class="hr" />
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <button class="btn-icon hover:preset-tonal" title="Remove assignment" onclick={removeAssignment}>
-            <Trash2Icon class="size-4" />
-        </button>
-    {/if}
 </div>

@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @import '@skeletonlabs/skeleton';
+@import '@skeletonlabs/skeleton/themes/rose';
 @import '@fontsource/inter';
-@import './styles/theme-open-iris.css';
+
+[data-theme='rose'] {
+    --base-font-family: 'Inter', system-ui, sans-serif;
+}

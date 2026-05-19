@@ -130,6 +130,19 @@
 
     let confirmDialogOpen = $state(false);
 
+    $effect(() => {
+        if (currentAssignment === null) {
+            mode            = 'single';
+            selectedKey     = undefined;
+            steps           = [];
+            seqName         = '';
+            seqDelayMs      = 200;
+            isNamedSequence = false;
+            namedSequenceId = null;
+            hasBeenNamed    = false;
+        }
+    });
+
     let stepCount  = $derived(steps.length);
     let stepLabel  = $derived(stepCount === 1 ? '1 step' : `${stepCount} steps`);
     let isReusable = $derived(seqName.trim().length > 0);
