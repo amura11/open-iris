@@ -66,7 +66,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto flex flex-col">
-            <div class="p-4 flex-1">
+            <div class="p-4 flex-1 flex flex-col">
                 {#if selection?.type === 'screen'}
                     <ScreenInspector state={activeState} {remoteConfig} onUpdate={onStateUpdate} onConfigUpdate={onConfigUpdate ?? (() => {})} />
                 {:else if selection?.type === 'button' && activeButton}

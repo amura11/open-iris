@@ -14,3 +14,10 @@ export interface SequenceEditorConfirmation {
     name:    string | undefined;
     delayMs: number;
 }
+
+// Payload sent from SequenceActionEditor to ButtonActionPanel when the user
+// clicks "Back to single action". The coordinator uses it to restore the
+// correct selectedKey and (for anonymous sequences) to update the assignment.
+export type BackToSingleContext =
+    | { kind: 'named';     namedSequenceId: number }
+    | { kind: 'anonymous'; firstStep:       ActionPickerSelection | null };
