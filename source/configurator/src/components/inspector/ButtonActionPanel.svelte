@@ -3,8 +3,8 @@
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ActionPickerSelection, BackToSingleContext } from '@model/configurator-types.ts';
     import { reconstructSteps } from '@model/assignment-utils.ts';
-    import SingleActionEditor from './SingleActionEditor.svelte';
-    import SequenceActionEditor from './SequenceActionEditor.svelte';
+    import SingleActionEditor from '@components/action/SingleActionEditor.svelte';
+    import SequenceActionEditor from '@components/action/SequenceActionEditor.svelte';
 
     type ButtonAssignment =
         | { kind: 'sequence'; sequenceId: number }

@@ -2,7 +2,7 @@
     import type { State, RemoteConfig } from '@model/state.ts';
     import type { ScreenButtonConfig } from '@model/actions.ts';
     import { garbageCollect } from '@model/assignment-utils.ts';
-    import ScreenButtonRow from '@components/ScreenButtonRow.svelte';
+    import ScreenButtonRow from './ScreenButtonRow.svelte';
 
     interface Props {
         state: State;

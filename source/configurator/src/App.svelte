@@ -12,10 +12,10 @@
     import type { DeviceMetadata, FunctionMetadata } from '@model/state.ts';
     import { consumeId } from '@model/assignment-utils.ts';
     import type { CatalogDevice } from '@catalog/catalog-source.ts';
-    import RemotePreview from '@components/RemotePreview.svelte';
-    import InspectorPanel from '@components/InspectorPanel.svelte';
-    import StateEditDialog from '@components/StateEditDialog.svelte';
-    import DeviceDiscoveryDialog from '@components/DeviceDiscoveryDialog.svelte';
+    import RemotePreview from '@components/preview/RemotePreview.svelte';
+    import InspectorPanel from '@components/inspector/InspectorPanel.svelte';
+    import StateEditDialog from '@components/dialogs/StateEditDialog.svelte';
+    import DeviceDiscoveryDialog from '@components/dialogs/DeviceDiscoveryDialog.svelte';
 
     let layout = $state<RemoteLayout | null>(null);
     let remoteConfig = $state<RemoteConfig>({

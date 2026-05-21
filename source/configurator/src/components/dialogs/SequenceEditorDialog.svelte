@@ -5,7 +5,7 @@
     import type { Device, DeviceFunction } from '@model/devices.ts';
     import type { State } from '@model/state.ts';
     import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
-    import ActionPicker from './ActionPicker.svelte';
+    import ActionPicker from '@components/action/ActionPicker.svelte';
 
     interface Props {
         open:           boolean;

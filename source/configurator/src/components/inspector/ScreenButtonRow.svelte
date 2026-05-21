@@ -12,8 +12,8 @@
         buildMultiActionConfig,
         selectionToAction,
     } from '@model/assignment-utils.ts';
-    import ActionPicker from './ActionPicker.svelte';
-    import SequenceEditorDialog from './SequenceEditorDialog.svelte';
+    import ActionPicker from '@components/action/ActionPicker.svelte';
+    import SequenceEditorDialog from '@components/dialogs/SequenceEditorDialog.svelte';
 
     interface Props {
         button: ScreenButtonConfig;

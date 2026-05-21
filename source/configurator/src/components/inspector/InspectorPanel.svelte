@@ -3,8 +3,8 @@
     import type { Selection } from '@model/selection.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
     import type { State, RemoteConfig } from '@model/state.ts';
-    import ScreenInspector from '@components/ScreenInspector.svelte';
-    import ButtonInspector from '@components/ButtonInspector.svelte';
+    import ScreenInspector from './ScreenInspector.svelte';
+    import ButtonInspector from './ButtonInspector.svelte';
 
     interface Props {
         selection: Selection;

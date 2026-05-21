@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { State, RemoteConfig } from '@model/state.ts';
-    import ScreenButtonList from '@components/ScreenButtonList.svelte';
+    import ScreenButtonList from './ScreenButtonList.svelte';
 
     interface Props {
         state: State;
