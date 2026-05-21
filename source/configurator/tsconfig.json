@@ -18,6 +18,8 @@
             "@layout/*":        ["src/layout/*"],
             "@model/*":         ["src/model/*"],
             "@serialization/*": ["src/serialization/*"],
+            "@services/*":      ["src/services/*"],
+            "@stores/*":        ["src/stores/*"],
             "@styles/*":        ["src/styles/*"]
         }
     },

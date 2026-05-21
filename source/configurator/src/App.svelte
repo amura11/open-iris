@@ -4,90 +4,19 @@
     import { loadAppConfig } from './app-config.ts';
     import { loadLayout } from '@layout/layout-loader.ts';
     import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { State, RemoteConfig } from '@model/state.ts';
+    import type { State } from '@model/state.ts';
     import type { Selection } from '@model/selection.ts';
-    import { downloadBin } from '@serialization/writer.ts';
-    import { deserialize } from '@serialization/reader.ts';
-    import type { Device, DeviceId, DeviceFunction } from '@model/devices.ts';
-    import type { DeviceMetadata, FunctionMetadata } from '@model/state.ts';
-    import { consumeId } from '@model/assignment-utils.ts';
-    import type { CatalogDevice } from '@catalog/catalog-source.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
+    import { exportConfig, importConfig } from '@services/import-export-service.ts';
     import RemotePreview from '@components/preview/RemotePreview.svelte';
     import InspectorPanel from '@components/inspector/InspectorPanel.svelte';
     import StateEditDialog from '@components/dialogs/StateEditDialog.svelte';
     import DeviceDiscoveryDialog from '@components/dialogs/DeviceDiscoveryDialog.svelte';
 
-    let layout = $state<RemoteLayout | null>(null);
-    let remoteConfig = $state<RemoteConfig>({
-        rootStateId: 0,
-        states: [{
-            id: 0,
-            name: 'Home',
-            stateType: 'root',
-            screenButtons: [],
-            physicalButtons: [],
-            onActivate: null,
-            onDeactivate: null,
-            buttonFallback: false,
-            activeDevices: [],
-        }],
-        sequences: [],
-        devices:    [],
-        functions:  [],
-        dataBlocks: [],
-        metadata: {
-            idCounters:       { device: 0, function: 0, sequence: 0, state: 1, dataBlock: 0 },
-            deviceMetadata:   [],
-            functionMetadata: [],
-            sequenceMetadata: [],
-            extra:            {},
-        },
-    });
-    let deviceDialogOpen = $state(false);
-    let loadError   = $state<string | null>(null);
-    let importError = $state<string | null>(null);
+    // ── Layout loading ────────────────────────────────────────────────────────
 
-    let selectedStateId = $state(0);
-    let selectedState   = $derived(
-        remoteConfig.states.find(s => s.id === selectedStateId) ?? remoteConfig.states[0]
-    );
-
-    let selection      = $state<Selection>(null);
-    let panelWidth     = $state(Math.min(600, Math.round(window.innerWidth / 3)));
-    let panelCollapsed = $state(false);
-
-    let stateEditOpen = $state(false);
-    let stateEditMode = $state<'create' | 'edit'>('edit');
-    let stateEditInitial = $state<State>({
-        id: -1, name: 'New State', stateType: 'persistent',
-        screenButtons: [], physicalButtons: [],
-        onActivate: null, onDeactivate: null,
-        buttonFallback: false, activeDevices: [],
-    });
-    let deleteDialogOpen = $state(false);
-    let pendingDeleteName = $state('');
-
-    function togglePanel() {
-        panelCollapsed = !panelCollapsed;
-    }
-
-    function startResize(e: MouseEvent) {
-        const startX     = e.clientX;
-        const startWidth = panelWidth;
-        function onMove(e: MouseEvent) {
-            panelWidth = Math.max(200, Math.min(600, startWidth + (startX - e.clientX)));
-        }
-        function onUp() {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.documentElement.style.cursor    = '';
-            document.documentElement.style.userSelect = '';
-        }
-        document.documentElement.style.cursor    = 'col-resize';
-        document.documentElement.style.userSelect = 'none';
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    }
+    let layout    = $state<RemoteLayout | null>(null);
+    let loadError = $state<string | null>(null);
 
     async function initialize() {
         const appConfig = await loadAppConfig();
@@ -102,6 +31,53 @@
         loadError = String(err);
     });
 
+    // ── UI state ──────────────────────────────────────────────────────────────
+
+    let importError  = $state<string | null>(null);
+    let selection    = $state<Selection>(null);
+    let panelWidth   = $state(Math.min(600, Math.round(window.innerWidth / 3)));
+    let panelCollapsed = $state(false);
+
+    // ── Dialog state ──────────────────────────────────────────────────────────
+
+    let deviceDialogOpen  = $state(false);
+    let stateEditOpen     = $state(false);
+    let stateEditMode     = $state<'create' | 'edit'>('edit');
+    let stateEditInitial  = $state<State>({
+        id: -1, name: 'New State', stateType: 'persistent',
+        screenButtons: [], physicalButtons: [],
+        onActivate: null, onDeactivate: null,
+        buttonFallback: false, activeDevices: [],
+    });
+    let deleteDialogOpen  = $state(false);
+    let pendingDeleteName = $state('');
+
+    // ── Panel resize ──────────────────────────────────────────────────────────
+
+    function togglePanel() {
+        panelCollapsed = !panelCollapsed;
+    }
+
+    function startResize(e: MouseEvent) {
+        const startX     = e.clientX;
+        const startWidth = panelWidth;
+        function onMove(e: MouseEvent) {
+            panelWidth = Math.max(200, Math.min(600, startWidth + (startX - e.clientX)));
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.documentElement.style.cursor     = '';
+            document.documentElement.style.userSelect = '';
+        }
+        document.documentElement.style.cursor     = 'col-resize';
+        document.documentElement.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    // ── Selection ─────────────────────────────────────────────────────────────
+
     function handleScreenClick() {
         selection = { type: 'screen' };
     }
@@ -110,16 +86,11 @@
         selection = { type: 'button', buttonCode };
     }
 
-    function handleStateUpdate(updated: State) {
-        remoteConfig = {
-            ...remoteConfig,
-            states: remoteConfig.states.map(s => s.id === updated.id ? updated : s),
-        };
+    function handleStateChange(e: Event) {
+        configStore.selectState(Number((e.target as HTMLSelectElement).value));
     }
 
-    function handleStateChange(e: Event) {
-        selectedStateId = Number((e.target as HTMLSelectElement).value);
-    }
+    // ── State CRUD ────────────────────────────────────────────────────────────
 
     function handleStateAdd() {
         stateEditInitial = {
@@ -133,23 +104,18 @@
     }
 
     function handleStateEdit() {
-        stateEditInitial = { ...selectedState };
-        stateEditMode = 'edit';
-        stateEditOpen = true;
+        stateEditInitial = { ...configStore.selectedState };
+        stateEditMode    = 'edit';
+        stateEditOpen    = true;
     }
 
     function handleStateEditConfirm(draft: State) {
         if (stateEditMode === 'create') {
-            const [newId, configWithId] = consumeId(remoteConfig, 'state');
-            const newState: State = { ...draft, id: newId };
-            remoteConfig = { ...configWithId, states: [...configWithId.states, newState] };
-            selectedStateId = newId;
+            const newId = configStore.addState(draft);
+            configStore.selectState(newId);
             selection = null;
         } else {
-            remoteConfig = {
-                ...remoteConfig,
-                states: remoteConfig.states.map(s => s.id === draft.id ? draft : s),
-            };
+            configStore.updateState(draft);
         }
         stateEditOpen = false;
     }
@@ -159,107 +125,29 @@
     }
 
     function handleStateDelete() {
-        pendingDeleteName = selectedState.name;
-        deleteDialogOpen = true;
+        pendingDeleteName = configStore.selectedState.name;
+        deleteDialogOpen  = true;
     }
 
     function confirmStateDelete() {
-        remoteConfig = {
-            ...remoteConfig,
-            states: remoteConfig.states.filter(s => s.id !== selectedStateId),
-        };
-        selectedStateId = remoteConfig.rootStateId;
-        selection = null;
+        configStore.deleteState(configStore.selectedStateId);
+        selection        = null;
         deleteDialogOpen = false;
     }
 
+    // ── Import / export ───────────────────────────────────────────────────────
+
     async function handleExport() {
-        await downloadBin(remoteConfig);
+        await exportConfig(configStore.remoteConfig);
     }
 
-    function handleImport() {
-        const input = document.createElement('input');
-        input.type   = 'file';
-        input.accept = '.bin';
-        input.onchange = async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            try {
-                remoteConfig    = await deserialize(new Uint8Array(await file.arrayBuffer()));
-                selectedStateId = remoteConfig.rootStateId;
-                importError     = null;
-            } catch (e) {
-                importError = `Import failed: ${e}`;
-            }
-        };
-        input.click();
-    }
-
-    function handleConfigUpdate(updated: RemoteConfig) {
-        remoteConfig    = updated;
-        selectedStateId = remoteConfig.states.some(s => s.id === selectedStateId)
-            ? selectedStateId
-            : remoteConfig.rootStateId;
-    }
-
-    function handleDeviceAdd(catalogDevice: CatalogDevice) {
-        if (remoteConfig.metadata.deviceMetadata.some(m => m.sourceId === catalogDevice.sourceId)) {
-            return;
+    async function handleImport() {
+        try {
+            configStore.loadConfig(await importConfig());
+            importError = null;
+        } catch (error) {
+            importError = `Import failed: ${error}`;
         }
-
-        let config = remoteConfig;
-        const [deviceId, afterDevice] = consumeId(config, 'device');
-        config = afterDevice;
-
-        const newDevice: Device = {
-            id:       deviceId,
-            name:     catalogDevice.name,
-            type:     catalogDevice.type,
-            powerMode: 'none',
-        };
-
-        const newFunctions: DeviceFunction[] = [];
-        const newFunctionMeta: FunctionMetadata[] = [];
-
-        for (const catalogFn of catalogDevice.functions) {
-            const [fnId, afterFn] = consumeId(config, 'function');
-            config = afterFn;
-            newFunctions.push({ id: fnId, deviceId, name: catalogFn.name, data: catalogFn.data });
-            newFunctionMeta.push({ id: fnId, sourceId: catalogFn.sourceId });
-        }
-
-        const newDeviceMeta: DeviceMetadata = {
-            id:           deviceId,
-            manufacturer: catalogDevice.manufacturer,
-            sourceId:     catalogDevice.sourceId,
-        };
-
-        remoteConfig = {
-            ...config,
-            devices:   [...config.devices,   newDevice],
-            functions: [...config.functions,  ...newFunctions],
-            metadata: {
-                ...config.metadata,
-                deviceMetadata:   [...config.metadata.deviceMetadata,   newDeviceMeta],
-                functionMetadata: [...config.metadata.functionMetadata, ...newFunctionMeta],
-            },
-        };
-    }
-
-    function handleDeviceRemove(deviceId: DeviceId) {
-        const removedFunctionIds = new Set(
-            remoteConfig.functions.filter(f => f.deviceId === deviceId).map(f => f.id)
-        );
-        remoteConfig = {
-            ...remoteConfig,
-            devices:   remoteConfig.devices.filter(d => d.id !== deviceId),
-            functions: remoteConfig.functions.filter(f => f.deviceId !== deviceId),
-            metadata: {
-                ...remoteConfig.metadata,
-                deviceMetadata:   remoteConfig.metadata.deviceMetadata.filter(m => m.id !== deviceId),
-                functionMetadata: remoteConfig.metadata.functionMetadata.filter(m => !removedFunctionIds.has(m.id)),
-            },
-        };
     }
 </script>
 
@@ -290,9 +178,9 @@
             <button class="btn btn-sm hover:preset-tonal" onclick={() => { deviceDialogOpen = true; }}>
                 <CpuIcon class="size-4" />
                 Devices
-                {#if remoteConfig.devices.length > 0}
+                {#if configStore.remoteConfig.devices.length > 0}
                     <span class="badge preset-filled-primary-500 rounded-full">
-                        {remoteConfig.devices.length}
+                        {configStore.remoteConfig.devices.length}
                     </span>
                 {/if}
             </button>
@@ -315,10 +203,10 @@
         <div class="state-bar flex justify-center items-center gap-1 px-4 py-2 bg-surface-100-900 border-b border-surface-200-800 shrink-0">
             <select
                 class="select w-64"
-                value={String(selectedStateId)}
+                value={String(configStore.selectedStateId)}
                 onchange={handleStateChange}
             >
-                {#each remoteConfig.states as s (s.id)}
+                {#each configStore.remoteConfig.states as s (s.id)}
                     <option value={String(s.id)}>{s.name}</option>
                 {/each}
             </select>
@@ -337,7 +225,7 @@
             <button
                 class="btn-icon hover:preset-tonal"
                 title="Delete state"
-                disabled={selectedState.stateType === 'root'}
+                disabled={configStore.selectedState.stateType === 'root'}
                 onclick={handleStateDelete}
             >
                 <Trash2Icon class="size-4" />
@@ -363,8 +251,8 @@
         {:else if layout}
             <RemotePreview
                 {layout}
-                config={remoteConfig}
-                activeState={selectedState}
+                config={configStore.remoteConfig}
+                activeState={configStore.selectedState}
                 {selection}
                 onScreenClick={handleScreenClick}
                 onButtonClick={handleButtonClick}
@@ -382,16 +270,14 @@
             <InspectorPanel
                 {selection}
                 {layout}
-                activeState={selectedState}
-                {remoteConfig}
+                activeState={configStore.selectedState}
+                remoteConfig={configStore.remoteConfig}
                 width={panelWidth}
                 collapsed={panelCollapsed}
-                onStateUpdate={handleStateUpdate}
-                onConfigUpdate={handleConfigUpdate}
+                onStateUpdate={(updated) => configStore.updateState(updated)}
+                onConfigUpdate={(updated) => configStore.replaceConfig(updated)}
                 onToggleCollapse={togglePanel}
-                onClearSelection={() => {
-                    selection = null;
-                }}
+                onClearSelection={() => { selection = null; }}
             />
             {#if importError}
                 <div class="import-toast">
@@ -418,10 +304,10 @@
 
     <DeviceDiscoveryDialog
         bind:open={deviceDialogOpen}
-        installedDevices={remoteConfig.devices}
-        installedMeta={remoteConfig.metadata.deviceMetadata}
-        onAdd={handleDeviceAdd}
-        onRemove={handleDeviceRemove}
+        installedDevices={configStore.remoteConfig.devices}
+        installedMeta={configStore.remoteConfig.metadata.deviceMetadata}
+        onAdd={(device) => configStore.addDevice(device)}
+        onRemove={(deviceId) => configStore.removeDevice(deviceId)}
     />
 
     <StateEditDialog
