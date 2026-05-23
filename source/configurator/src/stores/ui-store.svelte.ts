@@ -13,8 +13,7 @@ interface DeleteDialogState {
 }
 
 interface PanelState {
-    width:     number;
-    collapsed: boolean;
+    width: number;
 }
 
 const BLANK_STATE: State = {
@@ -31,7 +30,7 @@ const BLANK_STATE: State = {
 
 class UIStore {
     selection        = $state<Selection>(null);
-    panel            = $state<PanelState>({ width: Math.min(600, Math.round(window.innerWidth / 3)), collapsed: false });
+    panel            = $state<PanelState>({ width: Math.min(600, Math.round(window.innerWidth / 3)) });
     importError      = $state<string | null>(null);
     stateEditDialog  = $state<StateEditDialogState>({ open: false, mode: 'edit', initialState: BLANK_STATE });
     deleteDialog     = $state<DeleteDialogState>({ open: false, pendingName: '' });
@@ -47,10 +46,6 @@ class UIStore {
 
     clearSelection(): void {
         this.selection = null;
-    }
-
-    togglePanel(): void {
-        this.panel = { ...this.panel, collapsed: !this.panel.collapsed };
     }
 
     setPanelWidth(width: number): void {

@@ -82,6 +82,10 @@ export interface State {
     activeDevices:   DeviceId[];
 }
 
+// ── Action picker ─────────────────────────────────────────────────────────────
+
+export type ActionPickerSelection = SequenceStep;
+
 // ── Dialog / editor types ─────────────────────────────────────────────────────
 
 export interface SequenceEditorConfirmation {

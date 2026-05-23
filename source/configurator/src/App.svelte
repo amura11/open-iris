@@ -173,15 +173,13 @@
             </div>
         {:else if configStore.layout}
             <RemotePreview />
-            {#if !uiStore.panel.collapsed}
-                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                <div
-                    class="resize-handle"
-                    role="separator"
-                    aria-orientation="vertical"
-                    onmousedown={startResize}
-                ></div>
-            {/if}
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div
+                class="resize-handle"
+                role="separator"
+                aria-orientation="vertical"
+                onmousedown={startResize}
+            ></div>
             <InspectorPanel />
             {#if uiStore.importError}
                 <div class="import-toast">

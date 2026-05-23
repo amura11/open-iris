@@ -1,14 +1,16 @@
 <script lang="ts">
     import type { State, ScreenButton } from '@model/configurator-types.ts';
     import { configStore } from '@stores/config-store.svelte.ts';
+    import { removeScreenButtonAssignment } from '@services/assignment-service.ts';
     import ScreenButtonRow from './ScreenButtonRow.svelte';
 
     interface Props {
-        state: State;
+        state:    State;
+        onSelect: (button: ScreenButton) => void;
     }
 
     // Destructured as `stateData` to avoid naming conflict with the $state rune
-    let { state: stateData }: Props = $props();
+    let { state: stateData, onSelect }: Props = $props();
 
     let nextButtonId = $derived(
         stateData.screenButtons.reduce((max, btn) => Math.max(max, btn.id), 0) + 1
@@ -17,10 +19,6 @@
     function addButton() {
         const newButton: ScreenButton = { id: nextButtonId, label: 'New Button', assignment: null };
         configStore.updateState({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
-    }
-
-    function renameButton(updated: ScreenButton) {
-        configStore.updateState({ ...stateData, screenButtons: stateData.screenButtons.map(b => b.id === updated.id ? updated : b) });
     }
 
     function removeButton(button: ScreenButton) {
@@ -39,7 +37,8 @@
         {#each stateData.screenButtons as btn (btn.id)}
             <ScreenButtonRow
                 button={btn}
-                onRename={renameButton}
+                onSelect={() => onSelect(btn)}
+                onClear={() => removeScreenButtonAssignment(btn)}
                 onDelete={() => removeButton(btn)}
             />
         {/each}

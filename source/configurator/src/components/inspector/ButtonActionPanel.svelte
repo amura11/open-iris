@@ -4,7 +4,7 @@
     import {
         SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE,
     } from '@model/serialization.ts';
-    import SingleActionEditor from '@components/action/SingleActionEditor.svelte';
+    import ActionPicker from '@components/action/ActionPicker.svelte';
     import SequenceActionEditor from '@components/action/SequenceActionEditor.svelte';
 
     interface Props {
@@ -251,12 +251,21 @@
 </script>
 
 {#if mode === 'single'}
-    <SingleActionEditor
-        {selectedKey}
-        onSelect={handleSingleSelect}
-        onSelectNamed={handleSelectNamed}
-        onTurnIntoSequence={handleTurnIntoSequence}
-    />
+    <div class="flex flex-col">
+        <ActionPicker
+            mode="single"
+            {selectedKey}
+            onSelect={handleSingleSelect}
+            onSelectNamed={handleSelectNamed}
+        />
+        <div class="flex items-center border-t border-surface-200-800 mt-2 pt-2">
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <button class="btn btn-sm hover:preset-tonal" onclick={handleTurnIntoSequence}>
+                + Turn into sequence
+            </button>
+        </div>
+    </div>
 {:else}
     <SequenceActionEditor
         initialSteps={sequenceInitialSteps}
