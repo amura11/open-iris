@@ -1,41 +1,33 @@
 <script lang="ts">
-    import type { State, RemoteConfig } from '@model/state.ts';
-    import type { ScreenButtonConfig } from '@model/actions.ts';
-    import { garbageCollect } from '@model/assignment-utils.ts';
+    import type { State, ScreenButton } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import ScreenButtonRow from './ScreenButtonRow.svelte';
 
     interface Props {
         state: State;
-        remoteConfig: RemoteConfig;
-        onUpdate?: (updated: State) => void;
-        onConfigUpdate?: (updated: RemoteConfig) => void;
     }
 
     // Destructured as `stateData` to avoid naming conflict with the $state rune
-    let { state: stateData, remoteConfig, onUpdate, onConfigUpdate }: Props = $props();
+    let { state: stateData }: Props = $props();
 
     let nextButtonId = $derived(
         stateData.screenButtons.reduce((max, btn) => Math.max(max, btn.id), 0) + 1
     );
 
     function addButton() {
-        const newButton: ScreenButtonConfig = { id: nextButtonId, label: 'New Button', assignment: null };
-        onUpdate?.({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
+        const newButton: ScreenButton = { id: nextButtonId, label: 'New Button', assignment: null };
+        configStore.updateState({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
     }
 
-    function renameButton(updated: ScreenButtonConfig) {
-        onUpdate?.({ ...stateData, screenButtons: stateData.screenButtons.map(b => b.id === updated.id ? updated : b) });
+    function renameButton(updated: ScreenButton) {
+        configStore.updateState({ ...stateData, screenButtons: stateData.screenButtons.map(b => b.id === updated.id ? updated : b) });
     }
 
-    function removeButton(btn: ScreenButtonConfig) {
-        const updatedButtons = stateData.screenButtons.filter(b => b.id !== btn.id);
-        const updatedState: State = { ...stateData, screenButtons: updatedButtons };
-
-        if (btn.assignment?.kind === 'sequence' && onConfigUpdate) {
-            let updated: RemoteConfig = { ...remoteConfig, states: remoteConfig.states.map(s => s.id === updatedState.id ? updatedState : s) };
-            onConfigUpdate(garbageCollect(updated));
-        } else {
-            onUpdate?.(updatedState);
+    function removeButton(button: ScreenButton) {
+        const updatedState: State = { ...stateData, screenButtons: stateData.screenButtons.filter(b => b.id !== button.id) };
+        configStore.updateState(updatedState);
+        if (button.assignment?.kind === 'sequence') {
+            configStore.deleteAnonymousSequence(button.assignment.sequenceId);
         }
     }
 </script>
@@ -47,9 +39,6 @@
         {#each stateData.screenButtons as btn (btn.id)}
             <ScreenButtonRow
                 button={btn}
-                activeState={stateData}
-                {remoteConfig}
-                onConfigUpdate={onConfigUpdate ?? (() => {})}
                 onRename={renameButton}
                 onDelete={() => removeButton(btn)}
             />

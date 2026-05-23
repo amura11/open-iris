@@ -1,20 +1,11 @@
 <script lang="ts">
-    import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { RemoteConfig, State } from '@model/state.ts';
-    import type { Selection } from '@model/selection.ts';
-    import { assignmentLabel } from '@model/assignment-utils.ts';
+    import { assignmentLabel } from '@utils/label-utils.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
+    import { uiStore } from '@stores/ui-store.svelte.ts';
 
-    interface Props {
-        layout: RemoteLayout;
-        config: RemoteConfig;
-        activeState: State;
-        selection: Selection;
-        onScreenClick?: () => void;
-        onButtonClick?: (buttonCode: string) => void;
-        onEmptyClick?:  () => void;
-    }
-
-    let { layout, config, activeState, selection, onScreenClick, onButtonClick, onEmptyClick }: Props = $props();
+    let layout      = $derived(configStore.layout!);
+    let activeState = $derived(configStore.selectedState);
+    let selection   = $derived(uiStore.selection);
 
     let tooltipVisible    = $state(false);
     let tooltipLabel      = $state('');
@@ -104,7 +95,7 @@
         const screenEl = transformEl.querySelector(`#${layout.screen.svgElementId}`);
         if (screenEl?.contains(target)) {
             zoomToElement(screenEl);
-            onScreenClick?.();
+            uiStore.selectScreen();
             return;
         }
 
@@ -112,12 +103,12 @@
             const el = transformEl.querySelector(`#${btn.svgElementId}`);
             if (el?.contains(target)) {
                 zoomToElement(el);
-                onButtonClick?.(btn.buttonCode);
+                uiStore.selectButton(btn.buttonCode);
                 return;
             }
         }
 
-        onEmptyClick?.();
+        uiStore.clearSelection();
     }
 
     // ── Button tooltips ──────────────────────────────────────────────────────
@@ -137,7 +128,7 @@
             const enterHandler = () => {
                 const pb = activeState.physicalButtons.find(p => p.buttonCode === btn.buttonCode);
                 tooltipLabel      = btn.friendlyName;
-                tooltipAssignment = pb ? assignmentLabel(pb.assignment, config) : 'Unassigned';
+                tooltipAssignment = pb ? assignmentLabel(pb.assignment, configStore.devices, configStore.sequences, configStore.states) : 'Unassigned';
                 const rect = el.getBoundingClientRect();
                 const vr = viewportEl?.getBoundingClientRect();
                 tooltipX = rect.left + rect.width / 2 - (vr?.left ?? 0);

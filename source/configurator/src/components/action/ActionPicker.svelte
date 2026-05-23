@@ -1,15 +1,14 @@
 <script lang="ts">
     import { SearchIcon, CheckIcon, ListVideoIcon, XIcon } from '@lucide/svelte';
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import NavigateActionEditor from './NavigateActionEditor.svelte';
     import PauseActionEditor from './PauseActionEditor.svelte';
 
     interface DeviceItem {
         kind: 'device';
-        device: Device;
-        deviceFunction: DeviceFunction;
+        device: import('@model/configurator-types.ts').Device;
+        deviceFunction: import('@model/configurator-types.ts').DeviceFunction;
     }
 
     interface SystemItem {
@@ -25,17 +24,13 @@
     type PickerItem = DeviceItem | SystemItem | NamedSequenceItem;
 
     interface Props {
-        devices:          Device[];
-        functions:        DeviceFunction[];
-        states:           State[];
-        mode?:            'single' | 'sequence';
-        selectedKey?:     string;
-        namedSequences?:  Array<{ sequenceId: number; name: string }>;
-        onSelect:         (selection: ActionPickerSelection) => void;
-        onSelectNamed?:   (sequenceId: number) => void;
+        mode?:          'single' | 'sequence';
+        selectedKey?:   string;
+        onSelect:       (selection: ActionPickerSelection) => void;
+        onSelectNamed?: (sequenceId: number) => void;
     }
 
-    let { devices, functions, states, mode = 'single', selectedKey, namedSequences = [], onSelect, onSelectNamed }: Props = $props();
+    let { mode = 'single', selectedKey, onSelect, onSelectNamed }: Props = $props();
 
     let filterQuery    = $state('');
     let expandedEditor = $state<'navigate' | 'pause' | null>(null);
@@ -47,11 +42,13 @@
     };
 
     let allItems = $derived.by((): PickerItem[] => {
-        const deviceItems: DeviceItem[] = functions.flatMap(fn => {
-            const device = devices.find(d => d.id === fn.deviceId);
-            if (!device) return [];
-            return [{ kind: 'device' as const, device, deviceFunction: fn }];
-        });
+        const deviceItems: DeviceItem[] = configStore.devices.flatMap(device =>
+            device.functions.map(deviceFunction => ({
+                kind: 'device' as const,
+                device,
+                deviceFunction,
+            }))
+        );
 
         const systemItems: SystemItem[] = [
             { kind: 'navigate' },
@@ -60,7 +57,9 @@
         ];
 
         const namedItems: NamedSequenceItem[] = mode === 'single'
-            ? namedSequences.map(s => ({ kind: 'named_sequence' as const, sequenceId: s.sequenceId, name: s.name }))
+            ? configStore.sequences
+                .filter(s => s.name !== undefined)
+                .map(s => ({ kind: 'named_sequence' as const, sequenceId: s.id, name: s.name! }))
             : [];
 
         return [...deviceItems, ...systemItems, ...namedItems];
@@ -171,7 +170,7 @@
     </div>
 
     {#if expandedEditor === 'navigate'}
-        <NavigateActionEditor {states} onConfirm={handleNavigateConfirm} onCancel={handleEditorCancel} />
+        <NavigateActionEditor onConfirm={handleNavigateConfirm} onCancel={handleEditorCancel} />
     {:else if expandedEditor === 'pause'}
         <PauseActionEditor onConfirm={handlePauseConfirm} onCancel={handleEditorCancel} />
     {:else if visibleItems.length > 0}

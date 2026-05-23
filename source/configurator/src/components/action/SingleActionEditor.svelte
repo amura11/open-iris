@@ -1,31 +1,21 @@
 <script lang="ts">
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
     import ActionPicker from './ActionPicker.svelte';
 
     interface Props {
-        devices:            Device[];
-        functions:          DeviceFunction[];
-        states:             State[];
-        namedSequences:     Array<{ sequenceId: number; name: string }>;
         selectedKey:        string | undefined;
         onSelect:           (selection: ActionPickerSelection) => void;
         onSelectNamed:      (sequenceId: number) => void;
         onTurnIntoSequence: () => void;
     }
 
-    let { devices, functions, states, namedSequences, selectedKey, onSelect, onSelectNamed, onTurnIntoSequence }: Props = $props();
+    let { selectedKey, onSelect, onSelectNamed, onTurnIntoSequence }: Props = $props();
 </script>
 
 <div class="flex flex-col">
     <ActionPicker
-        {devices}
-        {functions}
-        {states}
         mode="single"
         {selectedKey}
-        {namedSequences}
         {onSelect}
         {onSelectNamed}
     />

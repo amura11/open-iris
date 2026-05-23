@@ -1,6 +1,4 @@
-import type { IRProtocol } from '@model/actions.ts';
-import type { StateType } from '@model/state.ts';
-import type { DeviceType, DevicePowerMode } from '@model/devices.ts';
+import type { IRProtocol, StateType, DeviceType, DevicePowerMode } from '@model/configurator-types.ts';
 import { ButtonCode } from '@model/button-codes.ts';
 
 // ── Format identity ───────────────────────────────────────────────────────────

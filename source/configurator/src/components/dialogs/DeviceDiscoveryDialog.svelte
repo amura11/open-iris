@@ -1,20 +1,18 @@
 <script lang="ts">
     import { CpuIcon, SearchIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal, Tabs } from '@skeletonlabs/skeleton-svelte';
-    import type { Device, DeviceId } from '@model/devices.ts';
-    import type { DeviceMetadata } from '@model/state.ts';
+    import type { Device, DeviceId } from '@model/configurator-types.ts';
     import { HardcodedCatalogSource, type CatalogDevice } from '@catalog/catalog-source.ts';
     import DeviceDetailPanel from './DeviceDetailPanel.svelte';
 
     interface Props {
         open:             boolean;
         installedDevices: Device[];
-        installedMeta:    DeviceMetadata[];
         onAdd:            (device: CatalogDevice) => void;
         onRemove:         (deviceId: DeviceId) => void;
     }
 
-    let { open = $bindable(false), installedDevices, installedMeta, onAdd, onRemove }: Props = $props();
+    let { open = $bindable(false), installedDevices, onAdd, onRemove }: Props = $props();
 
     const catalog = new HardcodedCatalogSource();
 
@@ -27,31 +25,18 @@
         catalog.search(browseQuery).then((results: CatalogDevice[]) => { catalogResults = results; });
     });
 
-    interface InstalledView {
-        device:       Device;
-        manufacturer: string;
-        sourceId:     string | undefined;
-    }
-
-    let installedViews = $derived<InstalledView[]>(
-        installedDevices.map(device => {
-            const meta = installedMeta.find(m => m.id === device.id);
-            return { device, manufacturer: meta?.manufacturer ?? '', sourceId: meta?.sourceId };
-        })
-    );
-
     const filteredInstalled = $derived(
-        installedViews.filter(v => {
+        installedDevices.filter(device => {
             const q = installedQuery.trim().toLowerCase();
             return !q ||
-                v.device.name.toLowerCase().includes(q) ||
-                v.manufacturer.toLowerCase().includes(q) ||
-                v.device.type.toLowerCase().includes(q);
+                device.name.toLowerCase().includes(q) ||
+                device.manufacturer.toLowerCase().includes(q) ||
+                device.type.toLowerCase().includes(q);
         })
     );
 
     function isInstalled(sourceId: string): boolean {
-        return installedMeta.some(m => m.sourceId === sourceId);
+        return installedDevices.some(d => d.sourceId === sourceId);
     }
 
     function handleAdd(device: CatalogDevice) {
@@ -60,10 +45,10 @@
     }
 
     function handleRemove(deviceId: DeviceId) {
-        const removedMeta = installedMeta.find(m => m.id === deviceId);
+        const removedDevice = installedDevices.find(d => d.id === deviceId);
         onRemove(deviceId);
 
-        if (removedMeta?.sourceId && selectedDevice?.sourceId === removedMeta.sourceId) {
+        if (removedDevice?.sourceId && selectedDevice?.sourceId === removedDevice.sourceId) {
             selectedDevice = null;
         }
     }
@@ -178,14 +163,14 @@
                                 </div>
                             </div>
                             <div class="flex-1 overflow-y-auto">
-                                {#each filteredInstalled as view (view.device.id)}
+                                {#each filteredInstalled as device (device.id)}
                                     <div class="device-row flex items-center justify-between px-3 py-2 gap-2 border-b border-surface-200-800">
                                         <div class="flex flex-col gap-1 min-w-0">
-                                            <span class="text-sm font-semibold truncate">{view.device.name}</span>
+                                            <span class="text-sm font-semibold truncate">{device.name}</span>
                                             <span class="flex items-center gap-1 text-xs text-surface-500-400">
-                                                {view.manufacturer}
-                                                <span class="badge rounded-full {view.device.type === 'ir' ? 'preset-tonal-primary' : 'preset-tonal-warning'}">
-                                                    {view.device.type.toUpperCase()}
+                                                {device.manufacturer}
+                                                <span class="badge rounded-full {device.type === 'ir' ? 'preset-tonal-primary' : 'preset-tonal-warning'}">
+                                                    {device.type.toUpperCase()}
                                                 </span>
                                             </span>
                                         </div>
@@ -193,7 +178,7 @@
                                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                                         <button
                                             class="btn btn-sm preset-outlined-error-500 shrink-0"
-                                            onclick={(e: Event) => { e.stopPropagation(); handleRemove(view.device.id); }}
+                                            onclick={(e: Event) => { e.stopPropagation(); handleRemove(device.id); }}
                                         >Remove</button>
                                     </div>
                                 {:else}

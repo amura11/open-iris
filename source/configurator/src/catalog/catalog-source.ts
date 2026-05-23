@@ -1,5 +1,4 @@
-import type { DeviceType } from '@model/devices.ts';
-import type { FunctionData, IRProtocol } from '@model/actions.ts';
+import type { DeviceType, FunctionData, IRProtocol } from '@model/configurator-types.ts';
 import rawCatalog from './devices.json';
 
 export interface CatalogDeviceFunction {

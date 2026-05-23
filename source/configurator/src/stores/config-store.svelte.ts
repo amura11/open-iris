@@ -1,144 +1,333 @@
-import type { State, RemoteConfig, DeviceMetadata, FunctionMetadata } from '@model/state.ts';
-import type { Device, DeviceId, DeviceFunction } from '@model/devices.ts';
+import type { State, Device, Sequence, SequenceStep, StateId, SequenceId, DeviceId } from '@model/configurator-types.ts';
+import type { WireConfig, WireIdCounters, WireState, WireDevice, WireDeviceFunction, WireSequence, WireDeviceMetadata, WireFunctionMetadata, WireSequenceMetadata, WireJsonObject } from '@model/wire-types.ts';
+import type { RemoteLayout } from '@layout/layout-types.ts';
 import type { CatalogDevice } from '@catalog/catalog-source.ts';
-import { consumeId } from '@model/assignment-utils.ts';
+import { loadLayout as loadLayoutFile } from '@layout/layout-loader.ts';
+import { loadAppConfig } from '../app-config.ts';
+import {
+    SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE, IRIS_NO_ID,
+} from '@model/serialization.ts';
 
-const DEFAULT_CONFIG: RemoteConfig = {
-    rootStateId: 0,
-    states: [{
-        id:              0,
-        name:            'Home',
-        stateType:       'root',
-        screenButtons:   [],
-        physicalButtons: [],
-        onActivate:      null,
-        onDeactivate:    null,
-        buttonFallback:  false,
-        activeDevices:   [],
-    }],
-    sequences:  [],
-    devices:    [],
-    functions:  [],
-    dataBlocks: [],
-    metadata: {
-        idCounters:       { device: 0, function: 0, sequence: 0, state: 1, dataBlock: 0 },
-        deviceMetadata:   [],
-        functionMetadata: [],
-        sequenceMetadata: [],
-        extra:            {},
-    },
+const DEFAULT_ROOT_STATE: State = {
+    id:              0,
+    name:            'Home',
+    stateType:       'root',
+    screenButtons:   [],
+    physicalButtons: [],
+    onActivate:      null,
+    onDeactivate:    null,
+    buttonFallback:  false,
+    activeDevices:   [],
 };
 
-class ConfigStore {
-    remoteConfig    = $state<RemoteConfig>(DEFAULT_CONFIG);
-    selectedStateId = $state<number>(0);
-    selectedState   = $derived(
-        this.remoteConfig.states.find(s => s.id === this.selectedStateId)
-        ?? this.remoteConfig.states[0]
+const DEFAULT_ID_COUNTERS: WireIdCounters = { device: 0, function: 0, sequence: 0, state: 1, dataBlock: 0 };
+
+// ── Wire → UI conversion helpers ──────────────────────────────────────────────
+
+function wireActionToStep(
+    action: WireConfig['sequences'][number]['actions'][number],
+    devices: Device[],
+): SequenceStep[] {
+    if (action.deviceId === SYSTEM_DEVICE_ID) {
+        if (action.functionId === SYSTEM_FN_NAVIGATE) {
+            return [{ kind: 'navigate', targetStateId: action.data }];
+        }
+
+        if (action.functionId === SYSTEM_FN_PAUSE) {
+            return [{ kind: 'pause', durationMs: action.data }];
+        }
+
+        return [{ kind: 'power_off_active' }];
+    }
+
+    const device = devices.find(d => d.id === action.deviceId);
+    const deviceFunction = device?.functions.find(f => f.id === action.functionId);
+
+    return device && deviceFunction ? [{ kind: 'device', device, deviceFunction }] : [];
+}
+
+// ── UI → Wire conversion helpers ──────────────────────────────────────────────
+
+export function stepToWireAction(step: SequenceStep): WireConfig['sequences'][number]['actions'][number] {
+    if (step.kind === 'device') {
+        return { deviceId: step.device.id, functionId: step.deviceFunction.id, data: IRIS_NO_ID };
+    }
+
+    if (step.kind === 'navigate') {
+        return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_NAVIGATE, data: step.targetStateId };
+    }
+
+    if (step.kind === 'pause') {
+        return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_PAUSE, data: step.durationMs };
+    }
+
+    return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_POWER_OFF_ACTIVE, data: IRIS_NO_ID };
+}
+
+// ── Store ─────────────────────────────────────────────────────────────────────
+
+class ConfiguratorStore {
+    devices         = $state<Device[]>([]);
+    sequences       = $state<Sequence[]>([]);
+    states          = $state<State[]>([DEFAULT_ROOT_STATE]);
+    rootStateId     = $state<StateId>(0);
+    selectedStateId = $state<StateId>(0);
+    layout          = $state<RemoteLayout | null>(null);
+    loadError       = $state<string | null>(null);
+
+    private idCounters = $state<WireIdCounters>({ ...DEFAULT_ID_COUNTERS });
+
+    selectedState = $derived(
+        this.states.find(s => s.id === this.selectedStateId) ?? this.states[0]
     );
 
-    selectState(stateId: number): void {
+    // ── ID allocation ──────────────────────────────────────────────────────────
+
+    private allocateId(idType: keyof WireIdCounters): number {
+        const id = this.idCounters[idType];
+        this.idCounters = { ...this.idCounters, [idType]: id + 1 };
+        return id;
+    }
+
+    // ── Layout loading ─────────────────────────────────────────────────────────
+
+    async loadLayout(): Promise<void> {
+        try {
+            const appConfig     = await loadAppConfig();
+            const defaultLayout = appConfig.layouts.find(l => l.id === appConfig.defaultLayout);
+
+            if (!defaultLayout) {
+                throw new Error('Default layout not found in app-config.json');
+            }
+
+            this.layout = await loadLayoutFile(defaultLayout.path);
+        } catch (error) {
+            this.loadError = String(error);
+        }
+    }
+
+    // ── State CRUD ─────────────────────────────────────────────────────────────
+
+    selectState(stateId: StateId): void {
         this.selectedStateId = stateId;
     }
 
-    // Updates a single state within the config, identified by its id.
     updateState(updated: State): void {
-        this.remoteConfig = {
-            ...this.remoteConfig,
-            states: this.remoteConfig.states.map(s => s.id === updated.id ? updated : s),
-        };
+        this.states = this.states.map(s => s.id === updated.id ? updated : s);
     }
 
-    // Allocates a new state ID, inserts the state, and returns the new ID.
-    addState(draft: State): number {
-        const [newId, configWithId] = consumeId(this.remoteConfig, 'state');
-        const newState: State = { ...draft, id: newId };
-        this.remoteConfig = { ...configWithId, states: [...configWithId.states, newState] };
+    addState(draft: State): StateId {
+        const newId = this.allocateId('state');
+        this.states = [...this.states, { ...draft, id: newId }];
         return newId;
     }
 
-    // Removes a state and resets selection to the root state.
-    deleteState(stateId: number): void {
-        this.remoteConfig = {
-            ...this.remoteConfig,
-            states: this.remoteConfig.states.filter(s => s.id !== stateId),
-        };
-        this.selectedStateId = this.remoteConfig.rootStateId;
+    deleteState(stateId: StateId): void {
+        this.states = this.states.filter(s => s.id !== stateId);
+        this.selectedStateId = this.rootStateId;
     }
 
-    // Replaces the entire config, preserving the current selection if it still exists.
-    replaceConfig(updated: RemoteConfig): void {
-        this.remoteConfig = updated;
-        if (!updated.states.some(s => s.id === this.selectedStateId)) {
-            this.selectedStateId = updated.rootStateId;
+    // ── Sequence CRUD ──────────────────────────────────────────────────────────
+
+    addSequence(steps: SequenceStep[], name?: string, delayMs?: number): SequenceId {
+        const newId = this.allocateId('sequence');
+        this.sequences = [...this.sequences, { id: newId, steps, name, delayMs: delayMs ?? 200 }];
+        return newId;
+    }
+
+    updateSequence(sequenceId: SequenceId, steps: SequenceStep[], name?: string, delayMs?: number): void {
+        this.sequences = this.sequences.map(s =>
+            s.id === sequenceId ? { ...s, steps, name, delayMs: delayMs ?? 200 } : s
+        );
+    }
+
+    deleteAnonymousSequence(sequenceId: SequenceId): void {
+        const sequence = this.sequences.find(s => s.id === sequenceId);
+
+        if (sequence?.name === undefined) {
+            this.sequences = this.sequences.filter(s => s.id !== sequenceId);
         }
     }
 
-    // Replaces the config and always resets selection to the root state (used on import).
-    loadConfig(config: RemoteConfig): void {
-        this.remoteConfig   = config;
-        this.selectedStateId = config.rootStateId;
-    }
+    // ── Device CRUD ────────────────────────────────────────────────────────────
 
     addDevice(catalogDevice: CatalogDevice): void {
-        if (this.remoteConfig.metadata.deviceMetadata.some(m => m.sourceId === catalogDevice.sourceId)) {
+        if (this.devices.some(d => d.sourceId === catalogDevice.sourceId)) {
             return;
         }
 
-        let config = this.remoteConfig;
-        const [deviceId, afterDevice] = consumeId(config, 'device');
-        config = afterDevice;
+        const deviceId = this.allocateId('device');
+        const functions = catalogDevice.functions.map(catalogFunction => ({
+            id:       this.allocateId('function'),
+            deviceId,
+            name:     catalogFunction.name,
+            data:     catalogFunction.data,
+            sourceId: catalogFunction.sourceId,
+        }));
 
-        const newDevice: Device = {
-            id:        deviceId,
-            name:      catalogDevice.name,
-            type:      catalogDevice.type,
-            powerMode: 'none',
-        };
-
-        const newFunctions: DeviceFunction[]  = [];
-        const newFunctionMeta: FunctionMetadata[] = [];
-
-        for (const catalogFn of catalogDevice.functions) {
-            const [fnId, afterFn] = consumeId(config, 'function');
-            config = afterFn;
-            newFunctions.push({ id: fnId, deviceId, name: catalogFn.name, data: catalogFn.data });
-            newFunctionMeta.push({ id: fnId, sourceId: catalogFn.sourceId });
-        }
-
-        const newDeviceMeta: DeviceMetadata = {
+        this.devices = [...this.devices, {
             id:           deviceId,
+            name:         catalogDevice.name,
+            type:         catalogDevice.type,
+            powerMode:    'none' as const,
             manufacturer: catalogDevice.manufacturer,
             sourceId:     catalogDevice.sourceId,
-        };
-
-        this.remoteConfig = {
-            ...config,
-            devices:   [...config.devices,   newDevice],
-            functions: [...config.functions,  ...newFunctions],
-            metadata: {
-                ...config.metadata,
-                deviceMetadata:   [...config.metadata.deviceMetadata,   newDeviceMeta],
-                functionMetadata: [...config.metadata.functionMetadata, ...newFunctionMeta],
-            },
-        };
+            functions,
+        }];
     }
 
     removeDevice(deviceId: DeviceId): void {
-        const removedFunctionIds = new Set(
-            this.remoteConfig.functions.filter(f => f.deviceId === deviceId).map(f => f.id)
+        this.devices = this.devices.filter(d => d.id !== deviceId);
+    }
+
+    // ── Wire format translation ────────────────────────────────────────────────
+
+    toWireConfig(): WireConfig {
+        const wireDevices: WireDevice[] = this.devices.map(device => ({
+            id:                  device.id,
+            name:                device.name,
+            type:                device.type,
+            powerMode:           device.powerMode,
+            powerOnFunctionId:   device.powerOnFunctionId,
+            powerOffFunctionId:  device.powerOffFunctionId,
+        }));
+
+        const wireFunctions: WireDeviceFunction[] = this.devices.flatMap(device =>
+            device.functions.map(deviceFunction => ({
+                id:       deviceFunction.id,
+                deviceId: deviceFunction.deviceId,
+                name:     deviceFunction.name,
+                data:     deviceFunction.data,
+            }))
         );
-        this.remoteConfig = {
-            ...this.remoteConfig,
-            devices:   this.remoteConfig.devices.filter(d => d.id !== deviceId),
-            functions: this.remoteConfig.functions.filter(f => f.deviceId !== deviceId),
+
+        const wireDeviceMetadata: WireDeviceMetadata[] = this.devices.map(device => ({
+            id:           device.id,
+            manufacturer: device.manufacturer,
+            sourceId:     device.sourceId,
+        }));
+
+        const wireFunctionMetadata: WireFunctionMetadata[] = this.devices.flatMap(device =>
+            device.functions.map(deviceFunction => ({
+                id:       deviceFunction.id,
+                sourceId: deviceFunction.sourceId,
+            }))
+        );
+
+        const wireSequences: WireSequence[] = this.sequences.map(sequence => ({
+            id:      sequence.id,
+            actions: sequence.steps.map(stepToWireAction),
+        }));
+
+        const wireSequenceMetadata: WireSequenceMetadata[] = this.sequences
+            .filter(sequence => sequence.name !== undefined || sequence.delayMs !== 200)
+            .map(sequence => ({
+                sequenceId: sequence.id,
+                ...(sequence.name !== undefined ? { name: sequence.name } : {}),
+                ...(sequence.delayMs !== 200    ? { delayMs: sequence.delayMs } : {}),
+            }));
+
+        const wireStates: WireState[] = this.states.map(state => ({
+            id:              state.id,
+            name:            state.name,
+            stateType:       state.stateType,
+            buttonFallback:  state.buttonFallback,
+            activeDevices:   state.activeDevices,
+            onActivate:      state.onActivate,
+            onDeactivate:    state.onDeactivate,
+            physicalButtons: state.physicalButtons.map(physicalButton => ({
+                buttonCode: physicalButton.buttonCode,
+                assignment: physicalButton.assignment,
+            })),
+            screenButtons: state.screenButtons.map(screenButton => ({
+                id:         screenButton.id,
+                label:      screenButton.label,
+                icon:       screenButton.icon,
+                assignment: screenButton.assignment,
+            })),
+        }));
+
+        return {
+            rootStateId: this.rootStateId,
+            states:      wireStates,
+            sequences:   wireSequences,
+            devices:     wireDevices,
+            functions:   wireFunctions,
+            dataBlocks:  [],
             metadata: {
-                ...this.remoteConfig.metadata,
-                deviceMetadata:   this.remoteConfig.metadata.deviceMetadata.filter(m => m.id !== deviceId),
-                functionMetadata: this.remoteConfig.metadata.functionMetadata.filter(m => !removedFunctionIds.has(m.id)),
+                idCounters:       this.idCounters,
+                deviceMetadata:   wireDeviceMetadata,
+                functionMetadata: wireFunctionMetadata,
+                sequenceMetadata: wireSequenceMetadata,
+                extra:            {} as WireJsonObject,
             },
         };
     }
+
+    loadFromWireConfig(config: WireConfig): void {
+        this.devices = config.devices.map(wireDevice => {
+            const metadata  = config.metadata.deviceMetadata.find(m => m.id === wireDevice.id);
+            const functions = config.functions
+                .filter(f => f.deviceId === wireDevice.id)
+                .map(wireFunction => {
+                    const functionMetadata = config.metadata.functionMetadata.find(m => m.id === wireFunction.id);
+                    return {
+                        id:       wireFunction.id,
+                        deviceId: wireFunction.deviceId,
+                        name:     wireFunction.name,
+                        data:     wireFunction.data,
+                        sourceId: functionMetadata?.sourceId,
+                    };
+                });
+
+            return {
+                id:                  wireDevice.id,
+                name:                wireDevice.name,
+                type:                wireDevice.type,
+                powerMode:           wireDevice.powerMode,
+                powerOnFunctionId:   wireDevice.powerOnFunctionId,
+                powerOffFunctionId:  wireDevice.powerOffFunctionId,
+                manufacturer:        metadata?.manufacturer ?? '',
+                sourceId:            metadata?.sourceId,
+                functions,
+            };
+        });
+
+        this.sequences = config.sequences.map(wireSequence => {
+            const metadata = config.metadata.sequenceMetadata.find(m => m.sequenceId === wireSequence.id);
+            const steps    = wireSequence.actions.flatMap(action => wireActionToStep(action, this.devices));
+            return {
+                id:      wireSequence.id,
+                name:    metadata?.name,
+                delayMs: metadata?.delayMs ?? 200,
+                steps,
+            };
+        });
+
+        this.states = config.states.map(wireState => ({
+            id:              wireState.id,
+            name:            wireState.name,
+            stateType:       wireState.stateType,
+            buttonFallback:  wireState.buttonFallback,
+            activeDevices:   wireState.activeDevices,
+            onActivate:      wireState.onActivate,
+            onDeactivate:    wireState.onDeactivate,
+            physicalButtons: wireState.physicalButtons.map(physicalButton => ({
+                buttonCode: physicalButton.buttonCode,
+                assignment: physicalButton.assignment,
+            })),
+            screenButtons: wireState.screenButtons.map(screenButton => ({
+                id:         screenButton.id,
+                label:      screenButton.label,
+                icon:       screenButton.icon,
+                assignment: screenButton.assignment,
+            })),
+        }));
+
+        this.rootStateId     = config.rootStateId;
+        this.idCounters      = config.metadata.idCounters;
+        this.selectedStateId = config.rootStateId;
+    }
 }
 
-export const configStore = new ConfigStore();
+export const configStore = new ConfiguratorStore();

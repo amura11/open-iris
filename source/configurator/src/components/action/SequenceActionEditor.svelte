@@ -2,29 +2,22 @@
     import { untrack } from 'svelte';
     import { GripVerticalIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State } from '@model/state.ts';
-    import type { ActionPickerSelection, BackToSingleContext } from '@model/configurator-types.ts';
+    import type { SequenceStep, BackToSingleContext } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import ActionCombobox from './ActionCombobox.svelte';
 
     interface Props {
-        devices:             Device[];
-        functions:           DeviceFunction[];
-        states:              State[];
-        initialSteps:        ActionPickerSelection[];
+        initialSteps:        SequenceStep[];
         initialName:         string;
         initialDelayMs:      number;
         initialIsNamed:      boolean;
         initialNamedId:      number | null;
         initialHasBeenNamed: boolean;
-        onAssignSequence:    (steps: ActionPickerSelection[], name: string | undefined, delayMs: number) => void;
+        onAssignSequence:    (steps: SequenceStep[], name: string | undefined, delayMs: number) => void;
         onBackToSingle:      (context: BackToSingleContext) => void;
     }
 
     let {
-        devices,
-        functions,
-        states,
         initialSteps,
         initialName,
         initialDelayMs,
@@ -39,7 +32,7 @@
 
     // untrack() captures the prop's value at mount time only — this component
     // owns its state from that point on, independent of the parent's prop.
-    let steps        = $state<ActionPickerSelection[]>(untrack(() => initialSteps));
+    let steps        = $state<SequenceStep[]>(untrack(() => initialSteps));
     let seqName      = $state(untrack(() => initialName));
     let seqDelayMs   = $state(untrack(() => initialDelayMs));
     let isNamed      = $state(untrack(() => initialIsNamed));
@@ -101,13 +94,13 @@
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    function stepName(step: ActionPickerSelection): string {
+    function stepName(step: SequenceStep): string {
         if (step.kind === 'device') {
             return step.deviceFunction.name;
         }
 
         if (step.kind === 'navigate') {
-            const target = states.find(s => s.id === step.targetStateId);
+            const target = configStore.states.find(s => s.id === step.targetStateId);
             return `Navigate → ${target?.name ?? 'Unknown'}`;
         }
 
@@ -118,7 +111,7 @@
         return 'Power off active devices';
     }
 
-    function stepDevice(step: ActionPickerSelection): string {
+    function stepDevice(step: SequenceStep): string {
         if (step.kind === 'device') {
             return step.device.name;
         }
@@ -138,7 +131,7 @@
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    function handleAddStep(selection: ActionPickerSelection) {
+    function handleAddStep(selection: SequenceStep) {
         steps = [...steps, selection];
         markModifiedAndNotify();
     }
@@ -232,12 +225,7 @@
                 <span class="uppercase tracking-wide text-xs text-surface-500-400 font-semibold">Actions</span>
                 <span class="text-xs text-surface-500-400">{stepLabel}</span>
             </div>
-            <ActionCombobox
-                {devices}
-                {functions}
-                {states}
-                onSelect={handleAddStep}
-            />
+            <ActionCombobox onSelect={handleAddStep} />
         </div>
         <div class="steps-list-wrap">
             {#if stepCount === 0}

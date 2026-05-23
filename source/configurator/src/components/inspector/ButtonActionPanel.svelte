@@ -1,28 +1,20 @@
 <script lang="ts">
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State, RemoteConfig } from '@model/state.ts';
-    import type { ActionPickerSelection, BackToSingleContext } from '@model/configurator-types.ts';
-    import { reconstructSteps } from '@model/assignment-utils.ts';
+    import type { SequenceStep, BackToSingleContext, ButtonAssignment } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
+    import {
+        SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE,
+    } from '@model/serialization.ts';
     import SingleActionEditor from '@components/action/SingleActionEditor.svelte';
     import SequenceActionEditor from '@components/action/SequenceActionEditor.svelte';
 
-    type ButtonAssignment =
-        | { kind: 'sequence'; sequenceId: number }
-        | { kind: 'action'; deviceId: number; functionId: number; data: number };
-
     interface Props {
-        devices:           Device[];
-        functions:         DeviceFunction[];
-        states:            State[];
-        remoteConfig:      RemoteConfig;
         currentAssignment: ButtonAssignment | null;
-        namedSequences:    Array<{ sequenceId: number; name: string }>;
-        onAssignSingle:    (selection: ActionPickerSelection) => void;
-        onAssignSequence:  (steps: ActionPickerSelection[], name: string | undefined, delayMs: number) => void;
+        onAssignSingle:    (step: SequenceStep) => void;
+        onAssignSequence:  (steps: SequenceStep[], name: string | undefined, delayMs: number) => void;
         onAssignNamed:     (sequenceId: number) => void;
     }
 
-    let { devices, functions, states, remoteConfig, currentAssignment, namedSequences, onAssignSingle, onAssignSequence, onAssignNamed }: Props = $props();
+    let { currentAssignment, onAssignSingle, onAssignSequence, onAssignNamed }: Props = $props();
 
     // ── Initialization helpers ────────────────────────────────────────────────
 
@@ -31,7 +23,8 @@
             return false;
         }
 
-        return namedSequences.some(s => s.sequenceId === assignment.sequenceId);
+        const sequence = configStore.sequences.find(s => s.id === assignment.sequenceId);
+        return sequence?.name !== undefined;
     }
 
     function resolveInitialMode(): 'single' | 'sequence' {
@@ -40,9 +33,9 @@
                 return 'sequence';
             }
 
-            const seq = remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
-            if (seq && seq.actions.length > 1) {
+            if (sequence && sequence.steps.length > 1) {
                 return 'sequence';
             }
         }
@@ -50,12 +43,12 @@
         return 'single';
     }
 
-    function resolveInitialSteps(): ActionPickerSelection[] {
+    function resolveInitialSteps(): SequenceStep[] {
         if (currentAssignment?.kind === 'sequence') {
-            const seq = remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
-            if (seq) {
-                return reconstructSteps(seq, remoteConfig);
+            if (sequence) {
+                return sequence.steps;
             }
         }
 
@@ -64,25 +57,17 @@
 
     function resolveInitialName(): string {
         if (currentAssignment?.kind === 'sequence') {
-            const meta = remoteConfig.metadata.sequenceMetadata.find(
-                m => m.sequenceId === currentAssignment.sequenceId
-            );
-
-            return meta?.name ?? '';
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            return sequence?.name ?? '';
         }
-
         return '';
     }
 
     function resolveInitialDelay(): number {
         if (currentAssignment?.kind === 'sequence') {
-            const meta = remoteConfig.metadata.sequenceMetadata.find(
-                m => m.sequenceId === currentAssignment.sequenceId
-            );
-
-            return meta?.delayMs ?? 200;
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            return sequence?.delayMs ?? 200;
         }
-
         return 200;
     }
 
@@ -94,44 +79,39 @@
         if (currentAssignment?.kind === 'sequence' && isAssignmentNamed(currentAssignment)) {
             return currentAssignment.sequenceId;
         }
-
         return null;
     }
 
     function resolveInitialHasBeenNamed(): boolean {
         if (currentAssignment?.kind === 'sequence') {
-            const meta = remoteConfig.metadata.sequenceMetadata.find(
-                m => m.sequenceId === currentAssignment.sequenceId
-            );
-
-            return meta?.name !== undefined;
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            return sequence?.name !== undefined;
         }
-
         return false;
     }
 
     function resolveSelectedKey(): string | undefined {
         if (currentAssignment?.kind === 'action') {
             const { deviceId, functionId } = currentAssignment;
-            const device = remoteConfig.devices.find(d => d.id === deviceId);
-            const fn     = remoteConfig.functions.find(f => f.id === functionId);
 
-            if (device && fn) {
-                return `device:${device.id}:${fn.id}`;
+            if (deviceId === SYSTEM_DEVICE_ID) {
+                if (functionId === SYSTEM_FN_NAVIGATE) {
+                    return 'system:navigate';
+                }
+
+                if (functionId === SYSTEM_FN_PAUSE) {
+                    return 'system:pause';
+                }
+
+                return 'system:power_off_active';
             }
 
-            const SYSTEM_FN_NAVIGATE = 0;
-            const SYSTEM_FN_PAUSE    = 1;
+            const device = configStore.devices.find(d => d.id === deviceId);
+            const deviceFunction = device?.functions.find(f => f.id === functionId);
 
-            if (functionId === SYSTEM_FN_NAVIGATE) {
-                return 'system:navigate';
+            if (device && deviceFunction) {
+                return `device:${device.id}:${deviceFunction.id}`;
             }
-
-            if (functionId === SYSTEM_FN_PAUSE) {
-                return 'system:pause';
-            }
-
-            return 'system:power_off_active';
         }
 
         if (currentAssignment?.kind === 'sequence') {
@@ -139,16 +119,24 @@
                 return `named:${currentAssignment.sequenceId}`;
             }
 
-            const seq = remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
-            if (seq && seq.actions.length === 1) {
-                const action = seq.actions[0];
-                const device = remoteConfig.devices.find(d => d.id === action.deviceId);
-                const fn     = remoteConfig.functions.find(f => f.id === action.functionId);
+            if (sequence && sequence.steps.length === 1) {
+                const step = sequence.steps[0];
 
-                if (device && fn) {
-                    return `device:${device.id}:${fn.id}`;
+                if (step.kind === 'device') {
+                    return `device:${step.device.id}:${step.deviceFunction.id}`;
                 }
+
+                if (step.kind === 'navigate') {
+                    return 'system:navigate';
+                }
+
+                if (step.kind === 'pause') {
+                    return 'system:pause';
+                }
+
+                return 'system:power_off_active';
             }
         }
 
@@ -179,46 +167,54 @@
 
     // ── Mode transition handlers ──────────────────────────────────────────────
 
-    function handleSingleSelect(selection: ActionPickerSelection) {
-        if (selection.kind === 'device') {
-            selectedKey = `device:${selection.device.id}:${selection.deviceFunction.id}`;
+    function handleSingleSelect(step: SequenceStep) {
+        if (step.kind === 'device') {
+            selectedKey = `device:${step.device.id}:${step.deviceFunction.id}`;
         } else {
-            selectedKey = `system:${selection.kind}`;
+            selectedKey = `system:${step.kind}`;
         }
-
-        onAssignSingle(selection);
+        onAssignSingle(step);
     }
 
     function handleSelectNamed(sequenceId: number) {
-        const seq  = remoteConfig.sequences.find(s => s.id === sequenceId);
-        const meta = remoteConfig.metadata.sequenceMetadata.find(m => m.sequenceId === sequenceId);
+        const sequence = configStore.sequences.find(s => s.id === sequenceId);
 
-        sequenceInitialSteps        = seq ? reconstructSteps(seq, remoteConfig) : [];
-        sequenceInitialName         = meta?.name ?? '';
-        sequenceInitialDelayMs      = meta?.delayMs ?? 200;
+        sequenceInitialSteps        = sequence?.steps ?? [];
+        sequenceInitialName         = sequence?.name ?? '';
+        sequenceInitialDelayMs      = sequence?.delayMs ?? 200;
         sequenceInitialIsNamed      = true;
         sequenceInitialNamedId      = sequenceId;
-        sequenceInitialHasBeenNamed = meta?.name !== undefined;
+        sequenceInitialHasBeenNamed = sequence?.name !== undefined;
 
         mode = 'sequence';
         onAssignNamed(sequenceId);
     }
 
     function handleTurnIntoSequence() {
-        const firstSteps: ActionPickerSelection[] = [];
+        const firstSteps: SequenceStep[] = [];
 
         if (currentAssignment?.kind === 'action') {
-            const device = remoteConfig.devices.find(d => d.id === currentAssignment.deviceId);
-            const fn     = remoteConfig.functions.find(f => f.id === currentAssignment.functionId);
-
-            if (device && fn) {
-                firstSteps.push({ kind: 'device', device, deviceFunction: fn });
+            const { deviceId, functionId, data } = currentAssignment;
+            if (deviceId === SYSTEM_DEVICE_ID) {
+                if (functionId === SYSTEM_FN_NAVIGATE) {
+                    firstSteps.push({ kind: 'navigate', targetStateId: data });
+                } else if (functionId === SYSTEM_FN_PAUSE) {
+                    firstSteps.push({ kind: 'pause', durationMs: data });
+                } else if (functionId === SYSTEM_FN_POWER_OFF_ACTIVE) {
+                    firstSteps.push({ kind: 'power_off_active' });
+                }
+            } else {
+                const device = configStore.devices.find(d => d.id === deviceId);
+                const deviceFunction = device?.functions.find(f => f.id === functionId);
+                if (device && deviceFunction) {
+                    firstSteps.push({ kind: 'device', device, deviceFunction });
+                }
             }
         } else if (currentAssignment?.kind === 'sequence') {
-            const seq = remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
-            if (seq) {
-                firstSteps.push(...reconstructSteps(seq, remoteConfig));
+            if (sequence) {
+                firstSteps.push(...sequence.steps);
             }
         }
 
@@ -241,28 +237,21 @@
             selectedKey = `named:${context.namedSequenceId}`;
         } else if (context.firstStep !== null) {
             const step = context.firstStep;
-
             if (step.kind === 'device') {
                 selectedKey = `device:${step.device.id}:${step.deviceFunction.id}`;
             } else {
                 selectedKey = `system:${step.kind}`;
             }
-
             onAssignSingle(step);
         } else {
             selectedKey = undefined;
         }
-
         mode = 'single';
     }
 </script>
 
 {#if mode === 'single'}
     <SingleActionEditor
-        {devices}
-        {functions}
-        {states}
-        {namedSequences}
         {selectedKey}
         onSelect={handleSingleSelect}
         onSelectNamed={handleSelectNamed}
@@ -270,9 +259,6 @@
     />
 {:else}
     <SequenceActionEditor
-        {devices}
-        {functions}
-        {states}
         initialSteps={sequenceInitialSteps}
         initialName={sequenceInitialName}
         initialDelayMs={sequenceInitialDelayMs}

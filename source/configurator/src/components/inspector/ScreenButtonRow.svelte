@@ -1,64 +1,51 @@
 <script lang="ts">
-    import { PencilIcon, Trash2Icon, ListVideoIcon, ZapIcon, ArrowRightIcon, TriangleAlertIcon, ListIcon } from '@lucide/svelte';
-    import type { ScreenButtonConfig, Sequence, SequenceId } from '@model/actions.ts';
-    import type { State, RemoteConfig, SequenceMetadata } from '@model/state.ts';
-    import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
+    import { PencilIcon, Trash2Icon, ListVideoIcon, ZapIcon, ArrowRightIcon, ListIcon } from '@lucide/svelte';
+    import type { ScreenButton, SequenceStep, SequenceEditorConfirmation } from '@model/configurator-types.ts';
+    import { assignmentLabel } from '@utils/label-utils.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import {
-        garbageCollect,
-        assignmentLabel,
-        reconstructSteps,
-        findButtonsUsingSequence,
-        buildSingleActionConfig,
-        buildMultiActionConfig,
-        selectionToAction,
-    } from '@model/assignment-utils.ts';
+        assignScreenButtonSingleAction,
+        assignScreenButtonSequence,
+        assignScreenButtonNamedSequence,
+        removeScreenButtonAssignment,
+    } from '@services/assignment-service.ts';
     import ActionPicker from '@components/action/ActionPicker.svelte';
     import SequenceEditorDialog from '@components/dialogs/SequenceEditorDialog.svelte';
 
     interface Props {
-        button: ScreenButtonConfig;
-        activeState: State;
-        remoteConfig: RemoteConfig;
-        onConfigUpdate: (updated: RemoteConfig) => void;
-        onRename: (updated: ScreenButtonConfig) => void;
+        button:   ScreenButton;
+        onRename: (updated: ScreenButton) => void;
         onDelete: () => void;
     }
 
-    let { button, activeState, remoteConfig, onConfigUpdate, onRename, onDelete }: Props = $props();
+    let { button, onRename, onDelete }: Props = $props();
 
-    let isRenamingLabel      = $state(false);
-    let pendingLabel         = $state('');
-    let isAssigning          = $state(false);
-    let isChangingAssignment = $state(false);
-    let sequenceEditorOpen   = $state(false);
-    let sequenceEditorInitialSteps = $state<ActionPickerSelection[]>([]);
+    let isRenamingLabel           = $state(false);
+    let pendingLabel               = $state('');
+    let isAssigning                = $state(false);
+    let isChangingAssignment       = $state(false);
+    let sequenceEditorOpen         = $state(false);
+    let sequenceEditorInitialSteps = $state<SequenceStep[]>([]);
     let sequenceEditorInitialName  = $state<string | undefined>(undefined);
-    let isEditingNamedSequence = $state(false);
 
     let currentAssignment = $derived(button.assignment ?? null);
-    let isAssigned = $derived(currentAssignment !== null);
+    let isAssigned        = $derived(currentAssignment !== null);
 
     let currentSequence = $derived(
         currentAssignment?.kind === 'sequence'
-            ? remoteConfig.sequences.find(s => s.id === currentAssignment.sequenceId) ?? null
-            : null
-    );
-
-    let currentSequenceMeta = $derived(
-        currentAssignment?.kind === 'sequence'
-            ? remoteConfig.metadata.sequenceMetadata.find(m => m.sequenceId === currentAssignment.sequenceId) ?? null
+            ? configStore.sequences.find(s => s.id === currentAssignment.sequenceId) ?? null
             : null
     );
 
     let isNamed = $derived(
-        currentAssignment?.kind === 'sequence' && currentSequenceMeta?.name !== undefined
+        currentAssignment?.kind === 'sequence' && currentSequence?.name !== undefined
     );
 
-    let showPicker = $derived(!isAssigned || isChangingAssignment);
+    let showPicker          = $derived(!isAssigned || isChangingAssignment);
     let showAssignmentPanel = $derived(isAssigning || isChangingAssignment);
 
     let namedSequences = $derived(
-        remoteConfig.metadata.sequenceMetadata.filter(m => m.name !== undefined)
+        configStore.sequences.filter(s => s.name !== undefined)
     );
 
     function startRename() {
@@ -73,110 +60,46 @@
         isRenamingLabel = false;
     }
 
-    function handleRenameKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter') commitRename();
-        if (e.key === 'Escape') isRenamingLabel = false;
+    function handleRenameKeydown(event: KeyboardEvent) {
+        if (event.key === 'Enter') commitRename();
+        if (event.key === 'Escape') isRenamingLabel = false;
     }
 
-    function applyAssignment(config: RemoteConfig, newAssignment: ScreenButtonConfig['assignment'] & object): RemoteConfig {
-        const updatedButtons = activeState.screenButtons.map(b =>
-            b.id === button.id ? { ...b, assignment: newAssignment } : b
-        );
-        const updatedState: State = { ...activeState, screenButtons: updatedButtons };
-        return { ...config, states: config.states.map(s => s.id === activeState.id ? updatedState : s) };
-    }
-
-    function assignSingleAction(selection: ActionPickerSelection) {
-        const previousAssignment = button.assignment ?? null;
-        const updated = buildSingleActionConfig(selection, previousAssignment, remoteConfig, applyAssignment);
+    function handleSingleAction(selection: SequenceStep) {
+        assignScreenButtonSingleAction(button, selection);
         isChangingAssignment = false;
         isAssigning = false;
-        onConfigUpdate(updated);
     }
 
-    function assignMultiActionSequence(result: SequenceEditorConfirmation) {
-        const previousAssignment = button.assignment ?? null;
-        const updated = buildMultiActionConfig(result.steps, result.name, result.delayMs, previousAssignment, remoteConfig, applyAssignment);
+    function handleSequenceEditorConfirm(result: SequenceEditorConfirmation) {
+        assignScreenButtonSequence(button, result);
         isChangingAssignment = false;
         isAssigning = false;
         sequenceEditorOpen = false;
-        onConfigUpdate(updated);
     }
 
-    function updateNamedSequence(result: SequenceEditorConfirmation) {
-        if (!currentSequence) return;
-
-        const actions = result.steps.map(selectionToAction);
-        const updatedSequence: Sequence = { ...currentSequence, actions };
-        const updatedMeta: SequenceMetadata = {
-            sequenceId: currentSequence.id,
-            name: result.name ?? currentSequenceMeta?.name,
-            ...(result.delayMs !== 200 ? { delayMs: result.delayMs } : {}),
-        };
-
-        const updatedConfig: RemoteConfig = {
-            ...remoteConfig,
-            sequences: remoteConfig.sequences.map(s => s.id === currentSequence.id ? updatedSequence : s),
-            metadata: {
-                ...remoteConfig.metadata,
-                sequenceMetadata: remoteConfig.metadata.sequenceMetadata.map(m =>
-                    m.sequenceId === currentSequence.id ? updatedMeta : m
-                ),
-            },
-        };
-
-        isEditingNamedSequence = false;
-        sequenceEditorOpen = false;
-        onConfigUpdate(updatedConfig);
-    }
-
-    function assignNamedSequence(sequenceId: SequenceId) {
-        const previousAssignment = button.assignment ?? null;
-        const newAssignment = { kind: 'sequence' as const, sequenceId };
-        let updated = applyAssignment({ ...remoteConfig }, newAssignment);
-        if (previousAssignment?.kind === 'sequence') updated = garbageCollect(updated);
+    function handleAssignNamedSequence(sequenceId: number) {
+        assignScreenButtonNamedSequence(button, sequenceId);
         isChangingAssignment = false;
         isAssigning = false;
-        onConfigUpdate(updated);
     }
 
-    function removeAssignment() {
-        const previousAssignment = button.assignment ?? null;
-        const updatedButtons = activeState.screenButtons.map(b =>
-            b.id === button.id ? { ...b, assignment: null } : b
-        );
-        const updatedState: State = { ...activeState, screenButtons: updatedButtons };
-        let updated: RemoteConfig = { ...remoteConfig, states: remoteConfig.states.map(s => s.id === activeState.id ? updatedState : s) };
-        if (previousAssignment?.kind === 'sequence') updated = garbageCollect(updated);
+    function handleRemoveAssignment() {
+        removeScreenButtonAssignment(button);
         isAssigning = false;
-        onConfigUpdate(updated);
     }
 
     function openSequenceEditor() {
         sequenceEditorInitialSteps = [];
         sequenceEditorInitialName = undefined;
-        isEditingNamedSequence = false;
         sequenceEditorOpen = true;
     }
 
     function openNamedSequenceEditor() {
         if (!currentSequence) return;
-        sequenceEditorInitialSteps = reconstructSteps(currentSequence, remoteConfig);
-        sequenceEditorInitialName = currentSequenceMeta?.name;
-        isEditingNamedSequence = true;
+        sequenceEditorInitialSteps = currentSequence.steps;
+        sequenceEditorInitialName = currentSequence.name;
         sequenceEditorOpen = true;
-    }
-
-    function handleSequenceEditorConfirm(result: SequenceEditorConfirmation) {
-        if (isEditingNamedSequence) {
-            updateNamedSequence(result);
-        } else {
-            assignMultiActionSequence(result);
-        }
-    }
-
-    function buttonFriendlyName(buttonCode: string): string {
-        return buttonCode;
     }
 </script>
 
@@ -209,7 +132,7 @@
                         class="assignment-chip text-xs cursor-pointer truncate"
                         onclick={() => { isAssigning = !isAssigning; isChangingAssignment = false; }}
                     >
-                        {assignmentLabel(currentAssignment, remoteConfig)}
+                        {assignmentLabel(currentAssignment, configStore.devices, configStore.sequences, configStore.states)}
                     </span>
                 {:else}
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -240,12 +163,7 @@
     {#if showAssignmentPanel}
         <div class="assignment-panel flex flex-col gap-3 p-3 border-t border-surface-200-800">
             {#if showPicker}
-                <ActionPicker
-                    devices={remoteConfig.devices}
-                    functions={remoteConfig.functions}
-                    states={remoteConfig.states}
-                    onSelect={assignSingleAction}
-                />
+                <ActionPicker onSelect={handleSingleAction} />
 
                 <hr class="hr m-0" />
 
@@ -260,14 +178,14 @@
                     <div>
                         <div class="text-xs text-surface-500-400 uppercase tracking-wider mb-2">Saved sequences</div>
                         <div class="flex flex-col gap-1">
-                            {#each namedSequences as meta (meta.sequenceId)}
+                            {#each namedSequences as sequence (sequence.id)}
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <div
                                     class="saved-sequence-row flex items-center justify-between px-2 py-1 rounded cursor-pointer"
-                                    onclick={() => assignNamedSequence(meta.sequenceId)}
+                                    onclick={() => handleAssignNamedSequence(sequence.id)}
                                 >
-                                    <span class="text-sm">{meta.name}</span>
+                                    <span class="text-sm">{sequence.name}</span>
                                     <ArrowRightIcon class="size-4 text-surface-500-400" />
                                 </div>
                             {/each}
@@ -282,10 +200,6 @@
                 </button>
 
             {:else if currentAssignment}
-                {@const usedBy = isNamed && currentSequence
-                    ? findButtonsUsingSequence(currentSequence.id, remoteConfig, buttonFriendlyName)
-                    : []}
-
                 <div class="flex flex-col gap-3">
                     <div class="assignment-label flex items-center gap-2 px-3 py-2 rounded-md">
                         {#if isNamed}
@@ -293,15 +207,8 @@
                         {:else}
                             <ZapIcon class="size-4 text-surface-500-400 shrink-0" />
                         {/if}
-                        <span class="text-sm flex-1 min-w-0 truncate">{assignmentLabel(currentAssignment, remoteConfig)}</span>
+                        <span class="text-sm flex-1 min-w-0 truncate">{assignmentLabel(currentAssignment, configStore.devices, configStore.sequences, configStore.states)}</span>
                     </div>
-
-                    {#if isNamed && usedBy.length > 1}
-                        <div class="flex items-center gap-2 p-3 rounded preset-tonal-warning">
-                            <TriangleAlertIcon class="size-4 shrink-0" />
-                            <span class="text-xs">Used by {usedBy.length} buttons. Editing will affect all of them.</span>
-                        </div>
-                    {/if}
 
                     <div class="flex gap-2">
                         {#if isNamed}
@@ -314,7 +221,7 @@
                         <button class="btn btn-sm hover:preset-tonal" onclick={() => { isChangingAssignment = true; }}>Replace</button>
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <button class="btn-icon hover:preset-tonal text-error-500" title="Remove assignment" onclick={removeAssignment}>
+                        <button class="btn-icon hover:preset-tonal text-error-500" title="Remove assignment" onclick={handleRemoveAssignment}>
                             <Trash2Icon class="size-4" />
                         </button>
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -329,9 +236,6 @@
 
 <SequenceEditorDialog
     open={sequenceEditorOpen}
-    devices={remoteConfig.devices}
-    functions={remoteConfig.functions}
-    states={remoteConfig.states}
     initialSteps={sequenceEditorInitialSteps}
     initialName={sequenceEditorInitialName}
     onConfirm={handleSequenceEditorConfirm}

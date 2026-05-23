@@ -1,68 +1,25 @@
 <script lang="ts">
     import { CpuIcon, UploadIcon, DownloadIcon, PlusCircleIcon, PencilIcon, Trash2Icon, OctagonAlertIcon, TriangleAlertIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
-    import { loadAppConfig } from './app-config.ts';
-    import { loadLayout } from '@layout/layout-loader.ts';
-    import type { RemoteLayout } from '@layout/layout-types.ts';
-    import type { State } from '@model/state.ts';
-    import type { Selection } from '@model/selection.ts';
+    import type { State } from '@model/configurator-types.ts';
     import { configStore } from '@stores/config-store.svelte.ts';
-    import { exportConfig, importConfig } from '@services/import-export-service.ts';
+    import { uiStore } from '@stores/ui-store.svelte.ts';
+    import { serialize, deserialize } from '@services/import-export-service.ts';
+    import { downloadFile, pickFile } from '@utils/file-utils.ts';
     import RemotePreview from '@components/preview/RemotePreview.svelte';
     import InspectorPanel from '@components/inspector/InspectorPanel.svelte';
     import StateEditDialog from '@components/dialogs/StateEditDialog.svelte';
     import DeviceDiscoveryDialog from '@components/dialogs/DeviceDiscoveryDialog.svelte';
 
-    // ── Layout loading ────────────────────────────────────────────────────────
-
-    let layout    = $state<RemoteLayout | null>(null);
-    let loadError = $state<string | null>(null);
-
-    async function initialize() {
-        const appConfig = await loadAppConfig();
-        const defaultLayout = appConfig.layouts.find(l => l.id === appConfig.defaultLayout);
-        if (!defaultLayout) {
-            throw new Error('Default layout not found in app-config.json');
-        }
-        layout = await loadLayout(defaultLayout.path);
-    }
-
-    initialize().catch(err => {
-        loadError = String(err);
-    });
-
-    // ── UI state ──────────────────────────────────────────────────────────────
-
-    let importError  = $state<string | null>(null);
-    let selection    = $state<Selection>(null);
-    let panelWidth   = $state(Math.min(600, Math.round(window.innerWidth / 3)));
-    let panelCollapsed = $state(false);
-
-    // ── Dialog state ──────────────────────────────────────────────────────────
-
-    let deviceDialogOpen  = $state(false);
-    let stateEditOpen     = $state(false);
-    let stateEditMode     = $state<'create' | 'edit'>('edit');
-    let stateEditInitial  = $state<State>({
-        id: -1, name: 'New State', stateType: 'persistent',
-        screenButtons: [], physicalButtons: [],
-        onActivate: null, onDeactivate: null,
-        buttonFallback: false, activeDevices: [],
-    });
-    let deleteDialogOpen  = $state(false);
-    let pendingDeleteName = $state('');
+    configStore.loadLayout();
 
     // ── Panel resize ──────────────────────────────────────────────────────────
 
-    function togglePanel() {
-        panelCollapsed = !panelCollapsed;
-    }
-
     function startResize(e: MouseEvent) {
         const startX     = e.clientX;
-        const startWidth = panelWidth;
-        function onMove(e: MouseEvent) {
-            panelWidth = Math.max(200, Math.min(600, startWidth + (startX - e.clientX)));
+        const startWidth = uiStore.panel.width;
+        function onMove(moveEvent: MouseEvent) {
+            uiStore.setPanelWidth(Math.max(200, Math.min(600, startWidth + (startX - moveEvent.clientX))));
         }
         function onUp() {
             document.removeEventListener('mousemove', onMove);
@@ -76,77 +33,43 @@
         document.addEventListener('mouseup', onUp);
     }
 
-    // ── Selection ─────────────────────────────────────────────────────────────
-
-    function handleScreenClick() {
-        selection = { type: 'screen' };
-    }
-
-    function handleButtonClick(buttonCode: string) {
-        selection = { type: 'button', buttonCode };
-    }
+    // ── State CRUD ────────────────────────────────────────────────────────────
 
     function handleStateChange(e: Event) {
         configStore.selectState(Number((e.target as HTMLSelectElement).value));
     }
 
-    // ── State CRUD ────────────────────────────────────────────────────────────
-
-    function handleStateAdd() {
-        stateEditInitial = {
-            id: -1, name: 'New State', stateType: 'persistent',
-            screenButtons: [], physicalButtons: [],
-            onActivate: null, onDeactivate: null,
-            buttonFallback: false, activeDevices: [],
-        };
-        stateEditMode = 'create';
-        stateEditOpen = true;
-    }
-
-    function handleStateEdit() {
-        stateEditInitial = { ...configStore.selectedState };
-        stateEditMode    = 'edit';
-        stateEditOpen    = true;
-    }
-
     function handleStateEditConfirm(draft: State) {
-        if (stateEditMode === 'create') {
+        if (uiStore.stateEditDialog.mode === 'create') {
             const newId = configStore.addState(draft);
             configStore.selectState(newId);
-            selection = null;
+            uiStore.clearSelection();
         } else {
             configStore.updateState(draft);
         }
-        stateEditOpen = false;
-    }
-
-    function handleStateEditCancel() {
-        stateEditOpen = false;
-    }
-
-    function handleStateDelete() {
-        pendingDeleteName = configStore.selectedState.name;
-        deleteDialogOpen  = true;
+        uiStore.closeStateEditDialog();
     }
 
     function confirmStateDelete() {
         configStore.deleteState(configStore.selectedStateId);
-        selection        = null;
-        deleteDialogOpen = false;
+        uiStore.clearSelection();
+        uiStore.closeDeleteDialog();
     }
 
     // ── Import / export ───────────────────────────────────────────────────────
 
     async function handleExport() {
-        await exportConfig(configStore.remoteConfig);
+        const bytes = await serialize(configStore.toWireConfig());
+        downloadFile(bytes, 'remote.bin');
     }
 
     async function handleImport() {
         try {
-            configStore.loadConfig(await importConfig());
-            importError = null;
+            const bytes = await pickFile('.bin');
+            configStore.loadFromWireConfig(await deserialize(bytes));
+            uiStore.setImportError(null);
         } catch (error) {
-            importError = `Import failed: ${error}`;
+            uiStore.setImportError(`Import failed: ${error}`);
         }
     }
 </script>
@@ -175,49 +98,49 @@
         <div class="flex items-center gap-3 ml-auto">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn btn-sm hover:preset-tonal" onclick={() => { deviceDialogOpen = true; }}>
+            <button class="btn btn-sm hover:preset-tonal" onclick={() => { uiStore.deviceDialogOpen = true; }}>
                 <CpuIcon class="size-4" />
                 Devices
-                {#if configStore.remoteConfig.devices.length > 0}
+                {#if configStore.devices.length > 0}
                     <span class="badge preset-filled-primary-500 rounded-full">
-                        {configStore.remoteConfig.devices.length}
+                        {configStore.devices.length}
                     </span>
                 {/if}
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn btn-sm hover:preset-tonal" title="Import remote.bin" onclick={handleImport} disabled={!layout}>
+            <button class="btn btn-sm hover:preset-tonal" title="Import remote.bin" onclick={handleImport} disabled={!configStore.layout}>
                 <UploadIcon class="size-4" />
                 Import
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn btn-sm preset-filled-primary-500" title="Export remote.bin" onclick={handleExport} disabled={!layout}>
+            <button class="btn btn-sm preset-filled-primary-500" title="Export remote.bin" onclick={handleExport} disabled={!configStore.layout}>
                 <DownloadIcon class="size-4" />
                 Export
             </button>
         </div>
     </header>
 
-    {#if layout}
+    {#if configStore.layout}
         <div class="state-bar flex justify-center items-center gap-1 px-4 py-2 bg-surface-100-900 border-b border-surface-200-800 shrink-0">
             <select
                 class="select w-64"
                 value={String(configStore.selectedStateId)}
                 onchange={handleStateChange}
             >
-                {#each configStore.remoteConfig.states as s (s.id)}
+                {#each configStore.states as s (s.id)}
                     <option value={String(s.id)}>{s.name}</option>
                 {/each}
             </select>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn-icon hover:preset-tonal" title="Add state" onclick={handleStateAdd}>
+            <button class="btn-icon hover:preset-tonal" title="Add state" onclick={() => uiStore.openStateCreate()}>
                 <PlusCircleIcon class="size-4" />
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={handleStateEdit}>
+            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={() => uiStore.openStateEdit(configStore.selectedState)}>
                 <PencilIcon class="size-4" />
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -226,7 +149,7 @@
                 class="btn-icon hover:preset-tonal"
                 title="Delete state"
                 disabled={configStore.selectedState.stateType === 'root'}
-                onclick={handleStateDelete}
+                onclick={() => uiStore.openDeleteDialog(configStore.selectedState.name)}
             >
                 <Trash2Icon class="size-4" />
             </button>
@@ -238,27 +161,19 @@
         from expanding to fit its content and breaking the layout.
     -->
     <main class="flex flex-1 min-h-0 overflow-hidden">
-        {#if loadError}
+        {#if configStore.loadError}
             <div class="flex w-full justify-center items-center">
                 <div class="card bg-surface-100-900 preset-outlined-error-500 p-4 w-96 max-w-[90vw] space-y-3 shadow-md">
                     <div class="flex items-center gap-3">
                         <OctagonAlertIcon class="size-5 text-error-500" />
                         <span class="font-semibold">Load Error</span>
                     </div>
-                    <p class="m-0 text-sm text-surface-500-400">{loadError}</p>
+                    <p class="m-0 text-sm text-surface-500-400">{configStore.loadError}</p>
                 </div>
             </div>
-        {:else if layout}
-            <RemotePreview
-                {layout}
-                config={configStore.remoteConfig}
-                activeState={configStore.selectedState}
-                {selection}
-                onScreenClick={handleScreenClick}
-                onButtonClick={handleButtonClick}
-                onEmptyClick={() => { selection = null; }}
-            />
-            {#if !panelCollapsed}
+        {:else if configStore.layout}
+            <RemotePreview />
+            {#if !uiStore.panel.collapsed}
                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                 <div
                     class="resize-handle"
@@ -267,25 +182,14 @@
                     onmousedown={startResize}
                 ></div>
             {/if}
-            <InspectorPanel
-                {selection}
-                {layout}
-                activeState={configStore.selectedState}
-                remoteConfig={configStore.remoteConfig}
-                width={panelWidth}
-                collapsed={panelCollapsed}
-                onStateUpdate={(updated) => configStore.updateState(updated)}
-                onConfigUpdate={(updated) => configStore.replaceConfig(updated)}
-                onToggleCollapse={togglePanel}
-                onClearSelection={() => { selection = null; }}
-            />
-            {#if importError}
+            <InspectorPanel />
+            {#if uiStore.importError}
                 <div class="import-toast">
                     <TriangleAlertIcon class="size-4 text-warning-500 shrink-0" />
-                    <span class="text-sm">{importError}</span>
+                    <span class="text-sm">{uiStore.importError}</span>
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <button class="btn-icon hover:preset-tonal size-5 shrink-0" onclick={() => (importError = null)} aria-label="Dismiss">
+                    <button class="btn-icon hover:preset-tonal size-5 shrink-0" onclick={() => uiStore.setImportError(null)} aria-label="Dismiss">
                         <XIcon class="size-3" />
                     </button>
                 </div>
@@ -303,31 +207,30 @@
     </main>
 
     <DeviceDiscoveryDialog
-        bind:open={deviceDialogOpen}
-        installedDevices={configStore.remoteConfig.devices}
-        installedMeta={configStore.remoteConfig.metadata.deviceMetadata}
+        bind:open={uiStore.deviceDialogOpen}
+        installedDevices={configStore.devices}
         onAdd={(device) => configStore.addDevice(device)}
         onRemove={(deviceId) => configStore.removeDevice(deviceId)}
     />
 
     <StateEditDialog
-        open={stateEditOpen}
-        mode={stateEditMode}
-        initialState={stateEditInitial}
+        open={uiStore.stateEditDialog.open}
+        mode={uiStore.stateEditDialog.mode}
+        initialState={uiStore.stateEditDialog.initialState}
         onConfirm={handleStateEditConfirm}
-        onCancel={handleStateEditCancel}
+        onCancel={() => uiStore.closeStateEditDialog()}
     />
 
     <Dialog
-        open={deleteDialogOpen}
-        onOpenChange={(details) => { deleteDialogOpen = details.open; }}
+        open={uiStore.deleteDialog.open}
+        onOpenChange={(details) => { if (!details.open) uiStore.closeDeleteDialog(); }}
     >
         <Portal>
             <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-950/50" />
             <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
                 <Dialog.Content class="card bg-surface-100-900 w-80 p-4 space-y-4 shadow-xl">
                     <Dialog.Title class="text-base font-semibold">Delete State?</Dialog.Title>
-                    <p class="text-sm m-0">Delete &ldquo;{pendingDeleteName}&rdquo;? This cannot be undone.</p>
+                    <p class="text-sm m-0">Delete &ldquo;{uiStore.deleteDialog.pendingName}&rdquo;? This cannot be undone.</p>
                     <footer class="flex justify-end gap-2">
                         <Dialog.CloseTrigger class="btn hover:preset-tonal">Cancel</Dialog.CloseTrigger>
                         <!-- svelte-ignore a11y_click_events_have_key_events -->

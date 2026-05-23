@@ -1,15 +1,6 @@
 <script lang="ts">
-    import type { State, RemoteConfig } from '@model/state.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import ScreenButtonList from './ScreenButtonList.svelte';
-
-    interface Props {
-        state: State;
-        remoteConfig: RemoteConfig;
-        onUpdate?: (updated: State) => void;
-        onConfigUpdate?: (updated: RemoteConfig) => void;
-    }
-
-    let { state, remoteConfig, onUpdate, onConfigUpdate }: Props = $props();
 </script>
 
-<ScreenButtonList {state} {remoteConfig} {onUpdate} {onConfigUpdate} />
+<ScreenButtonList state={configStore.selectedState} />

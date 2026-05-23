@@ -2,7 +2,7 @@
     import { PencilIcon } from '@lucide/svelte';
     import { Dialog, Portal, Switch } from '@skeletonlabs/skeleton-svelte';
     import { tick, untrack } from 'svelte';
-    import type { State, StateType } from '@model/state.ts';
+    import type { State, StateType } from '@model/configurator-types.ts';
 
     interface Props {
         open:         boolean;

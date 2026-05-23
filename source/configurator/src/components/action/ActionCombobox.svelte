@@ -1,9 +1,8 @@
 <script lang="ts">
     import { SearchIcon } from '@lucide/svelte';
     import { Combobox, Portal, type ComboboxRootProps, useListCollection } from '@skeletonlabs/skeleton-svelte';
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State } from '@model/state.ts';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import NavigateActionEditor from './NavigateActionEditor.svelte';
     import PauseActionEditor from './PauseActionEditor.svelte';
 
@@ -14,28 +13,23 @@
     }
 
     interface Props {
-        devices:   Device[];
-        functions: DeviceFunction[];
-        states:    State[];
-        onSelect:  (selection: ActionPickerSelection) => void;
+        onSelect: (selection: ActionPickerSelection) => void;
     }
 
-    let { devices, functions, states, onSelect }: Props = $props();
+    let { onSelect }: Props = $props();
 
     let expandedEditor      = $state<'navigate' | 'pause' | null>(null);
     let filteredActionItems = $state<ActionItem[]>([]);
     let comboboxKey         = $state(0);
 
     let allActionItems = $derived.by((): ActionItem[] => {
-        const deviceItems: ActionItem[] = functions.flatMap(fn => {
-            const device = devices.find(d => d.id === fn.deviceId);
-
-            if (!device) {
-                return [];
-            }
-
-            return [{ label: fn.name, value: `device:${device.id}:${fn.id}`, sublabel: device.name }];
-        });
+        const deviceItems: ActionItem[] = configStore.devices.flatMap(device =>
+            device.functions.map(deviceFunction => ({
+                label:    deviceFunction.name,
+                value:    `device:${device.id}:${deviceFunction.id}`,
+                sublabel: device.name,
+            }))
+        );
 
         return [
             ...deviceItems,
@@ -104,13 +98,13 @@
         const parts = key.split(':');
 
         if (parts[0] === 'device' && parts.length === 3) {
-            const deviceId   = Number(parts[1]);
-            const functionId = Number(parts[2]);
-            const device     = devices.find(d => d.id === deviceId);
-            const fn         = functions.find(f => f.id === functionId);
+            const deviceId      = Number(parts[1]);
+            const functionId    = Number(parts[2]);
+            const device        = configStore.devices.find(d => d.id === deviceId);
+            const deviceFunction = device?.functions.find(f => f.id === functionId);
 
-            if (device && fn) {
-                onSelect({ kind: 'device', device, deviceFunction: fn });
+            if (device && deviceFunction) {
+                onSelect({ kind: 'device', device, deviceFunction });
             }
         }
     };
@@ -131,7 +125,7 @@
 </script>
 
 {#if expandedEditor === 'navigate'}
-    <NavigateActionEditor {states} onConfirm={handleNavigateConfirm} onCancel={handleEditorCancel} />
+    <NavigateActionEditor onConfirm={handleNavigateConfirm} onCancel={handleEditorCancel} />
 {:else if expandedEditor === 'pause'}
     <PauseActionEditor onConfirm={handlePauseConfirm} onCancel={handleEditorCancel} />
 {:else}

@@ -2,26 +2,22 @@
     import { ArrowUpIcon, ArrowDownIcon, Trash2Icon } from '@lucide/svelte';
     import { Dialog, Portal, Switch } from '@skeletonlabs/skeleton-svelte';
     import { untrack } from 'svelte';
-    import type { Device, DeviceFunction } from '@model/devices.ts';
-    import type { State } from '@model/state.ts';
-    import type { ActionPickerSelection, SequenceEditorConfirmation } from '@model/configurator-types.ts';
+    import type { SequenceStep, SequenceEditorConfirmation } from '@model/configurator-types.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
     import ActionPicker from '@components/action/ActionPicker.svelte';
 
     interface Props {
-        open:           boolean;
-        devices:        Device[];
-        functions:      DeviceFunction[];
-        states:         State[];
-        initialSteps?:  ActionPickerSelection[];
-        initialName?:   string;
+        open:            boolean;
+        initialSteps?:   SequenceStep[];
+        initialName?:    string;
         initialDelayMs?: number;
-        onConfirm:      (result: SequenceEditorConfirmation) => void;
-        onCancel:       () => void;
+        onConfirm:       (result: SequenceEditorConfirmation) => void;
+        onCancel:        () => void;
     }
 
-    let { open, devices, functions, states, initialSteps, initialName, initialDelayMs, onConfirm, onCancel }: Props = $props();
+    let { open, initialSteps, initialName, initialDelayMs, onConfirm, onCancel }: Props = $props();
 
-    let steps = $state<ActionPickerSelection[]>([]);
+    let steps = $state<SequenceStep[]>([]);
     let saveAsReusable = $state(false);
     let sequenceName = $state('');
     let delayMs = $state(200);
@@ -37,12 +33,12 @@
         }
     });
 
-    function stepLabel(selection: ActionPickerSelection): string {
+    function stepLabel(selection: SequenceStep): string {
         if (selection.kind === 'device') {
             return `${selection.device.name} → ${selection.deviceFunction.name}`;
         }
         if (selection.kind === 'navigate') {
-            const targetState = states.find(s => s.id === selection.targetStateId);
+            const targetState = configStore.states.find(s => s.id === selection.targetStateId);
             return `Navigate → ${targetState?.name ?? 'Unknown'}`;
         }
         if (selection.kind === 'pause') {
@@ -51,7 +47,7 @@
         return 'Power off active devices';
     }
 
-    function handleAddStep(selection: ActionPickerSelection) {
+    function handleAddStep(selection: SequenceStep) {
         steps = [...steps, selection];
         pickerKey++;
     }
@@ -184,7 +180,7 @@
                     <!-- ── Right: action picker ───────────────────────────────────────── -->
                     <div class="flex-1 overflow-y-auto p-4">
                         {#key pickerKey}
-                            <ActionPicker {devices} {functions} {states} onSelect={handleAddStep} />
+                            <ActionPicker onSelect={handleAddStep} />
                         {/key}
                     </div>
 

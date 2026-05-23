@@ -45,10 +45,10 @@ export default defineConfig({
             '@components':    fileURLToPath(new URL('./src/components',    import.meta.url)),
             '@layout':        fileURLToPath(new URL('./src/layout',        import.meta.url)),
             '@model':         fileURLToPath(new URL('./src/model',         import.meta.url)),
-            '@serialization': fileURLToPath(new URL('./src/serialization', import.meta.url)),
             '@services':      fileURLToPath(new URL('./src/services',      import.meta.url)),
             '@stores':        fileURLToPath(new URL('./src/stores',        import.meta.url)),
             '@styles':        fileURLToPath(new URL('./src/styles',        import.meta.url)),
+            '@utils':         fileURLToPath(new URL('./src/utils',         import.meta.url)),
         },
     },
     server: {

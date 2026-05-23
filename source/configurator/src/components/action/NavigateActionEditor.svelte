@@ -1,13 +1,14 @@
 <script lang="ts">
-    import type { State } from '@model/state.ts';
+    import { configStore } from '@stores/config-store.svelte.ts';
 
     interface Props {
-        states: State[];
         onConfirm: (targetStateId: number) => void;
         onCancel: () => void;
     }
 
-    let { states, onConfirm, onCancel }: Props = $props();
+    let { onConfirm, onCancel }: Props = $props();
+
+    let states = $derived(configStore.states);
 
     let selectedStateId = $state('');
 
