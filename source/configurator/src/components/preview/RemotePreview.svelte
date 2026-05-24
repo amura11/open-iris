@@ -17,99 +17,246 @@
     let viewportEl  = $state<HTMLDivElement | undefined>();
     let transformEl = $state<HTMLDivElement | undefined>();
 
-    // Pan / zoom state — reactive so template can read them
-    let tx    = $state(0);
-    let ty    = $state(0);
-    let scale = $state(1);
+    let scale       = $state(1);
     let isAnimating = $state(false);
-    let isDragging  = $state(false);
 
-    // Drag tracking — plain vars, not reactive (only needed inside event handlers)
-    let dragMoved = false;
-    let lastMx    = 0;
-    let lastMy    = 0;
+    let svgNaturalWidth  = $state(0);
+    let svgNaturalHeight = $state(0);
+    let viewportWidth    = $state(0);
+    let viewportHeight   = $state(0);
+    let hasFitInitially  = false;
 
-    // SVG natural width — set once on first fit, used to keep remote horizontally centered
-    let svgNaturalWidth = 0;
-
-    const MIN_SCALE = 0.25;
+    const PADDING   = 48;
     const MAX_SCALE = 5;
 
+    let minScale = $derived(
+        svgNaturalWidth > 0 && svgNaturalHeight > 0 && viewportWidth > 0 && viewportHeight > 0
+            ? Math.min(
+                (viewportWidth  - PADDING * 2) / svgNaturalWidth,
+                (viewportHeight - PADDING * 2) / svgNaturalHeight,
+                MAX_SCALE
+              )
+            : 1
+    );
+
+    let contentWidth  = $derived(Math.max(viewportWidth,  svgNaturalWidth  * scale + PADDING * 2));
+    let contentHeight = $derived(Math.max(viewportHeight, svgNaturalHeight * scale + PADDING * 2));
+    let offsetX       = $derived((contentWidth  - svgNaturalWidth  * scale) / 2);
+    let offsetY       = $derived((contentHeight - svgNaturalHeight * scale) / 2);
+
     let zoomPct = $derived(Math.round(scale * 100));
+
+    // ── Layout helper (used in zoom math before DOM updates) ─────────────────
+
+    function computeContentLayout(forScale: number) {
+        const newContentWidth  = Math.max(viewportWidth,  svgNaturalWidth  * forScale + PADDING * 2);
+        const newContentHeight = Math.max(viewportHeight, svgNaturalHeight * forScale + PADDING * 2);
+
+        return {
+            offsetX: (newContentWidth  - svgNaturalWidth  * forScale) / 2,
+            offsetY: (newContentHeight - svgNaturalHeight * forScale) / 2,
+        };
+    }
+
+    // ── ResizeObserver ───────────────────────────────────────────────────────
+
+    $effect(() => {
+        if (!viewportEl) {
+            return;
+        }
+
+        const observer = new ResizeObserver(entries => {
+            const entry = entries[0];
+            viewportWidth  = entry.contentRect.width;
+            viewportHeight = entry.contentRect.height;
+        });
+
+        observer.observe(viewportEl);
+
+        return () => observer.disconnect();
+    });
 
     // ── Initial fit ──────────────────────────────────────────────────────────
 
     $effect(() => {
-        if (!viewportEl || !transformEl) {
+        if (hasFitInitially || !viewportEl || !transformEl || viewportWidth === 0 || viewportHeight === 0) {
             return;
         }
 
         const svg = transformEl.querySelector('svg');
 
-        if (!svg) {
+        if (!svg || svg.clientWidth === 0) {
             return;
         }
 
-        applyFit(viewportEl.getBoundingClientRect(), svg.clientWidth, svg.clientHeight, false);
+        svgNaturalWidth  = svg.clientWidth;
+        svgNaturalHeight = svg.clientHeight;
+        hasFitInitially  = true;
+
+        scale = Math.min(
+            (viewportWidth  - PADDING * 2) / svgNaturalWidth,
+            (viewportHeight - PADDING * 2) / svgNaturalHeight,
+            MAX_SCALE
+        );
     });
 
-    function applyFit(vr: { width: number; height: number }, svgW: number, svgH: number, animated: boolean) {
-        svgNaturalWidth = svgW;
-        const padding = 48;
-        const s = Math.min((vr.width - padding * 2) / svgW, (vr.height - padding * 2) / svgH, 3);
-        
-        if (animated) {
-            isAnimating = true;
-        }
-
-        scale = s;
-        tx = (vr.width  - svgW * s) / 2;
-        ty = (vr.height - svgH * s) / 2;
-        if (animated) {
-            setTimeout(() => {
-                isAnimating = false;
-            }, 420);
-        }
-    }
+    // ── Fit / reset ──────────────────────────────────────────────────────────
 
     function resetView() {
-        if (!viewportEl || !transformEl) {
+        if (svgNaturalWidth === 0 || svgNaturalHeight === 0) {
             return;
         }
 
-        const svg = transformEl.querySelector('svg');
+        isAnimating = true;
+        scale = Math.min(
+            (viewportWidth  - PADDING * 2) / svgNaturalWidth,
+            (viewportHeight - PADDING * 2) / svgNaturalHeight,
+            MAX_SCALE
+        );
 
-        if (!svg) {
-            return;
-        }
-
-        applyFit(viewportEl.getBoundingClientRect(), svg.clientWidth, svg.clientHeight, true);
+        setTimeout(() => {
+            isAnimating = false;
+        }, 420);
     }
 
-    // ── Canvas click handler (button, screen, or empty area) ────────────────
+    // ── Canvas click ─────────────────────────────────────────────────────────
 
     function handleCanvasClick(e: MouseEvent) {
-        if (dragMoved || !transformEl) return;
-        const target = e.target as Element;
+        if (!transformEl) {
+            return;
+        }
 
+        const target   = e.target as Element;
         const screenEl = transformEl.querySelector(`#${layout.screen.svgElementId}`);
+
         if (screenEl?.contains(target)) {
-            zoomToElement(screenEl);
+            scrollElementIntoView(screenEl);
             uiStore.selectScreen();
             return;
         }
 
-        for (const btn of layout.buttons) {
-            const el = transformEl.querySelector(`#${btn.svgElementId}`);
+        for (const button of layout.buttons) {
+            const el = transformEl.querySelector(`#${button.svgElementId}`);
+
             if (el?.contains(target)) {
-                zoomToElement(el);
-                uiStore.selectButton(btn.buttonCode);
+                scrollElementIntoView(el);
+                uiStore.selectButton(button.buttonCode);
                 return;
             }
         }
 
         uiStore.clearSelection();
     }
+
+    // ── Scroll element into view ─────────────────────────────────────────────
+
+    function scrollElementIntoView(el: Element) {
+        if (!viewportEl) {
+            return;
+        }
+
+        const SCROLL_PADDING = 24;
+        const viewportRect   = viewportEl.getBoundingClientRect();
+        const elementRect    = el.getBoundingClientRect();
+
+        const relativeLeft   = elementRect.left   - viewportRect.left;
+        const relativeRight  = elementRect.right  - viewportRect.left;
+        const relativeTop    = elementRect.top    - viewportRect.top;
+        const relativeBottom = elementRect.bottom - viewportRect.top;
+
+        let scrollLeft = viewportEl.scrollLeft;
+        let scrollTop  = viewportEl.scrollTop;
+
+        if (relativeLeft < SCROLL_PADDING) {
+            scrollLeft += relativeLeft - SCROLL_PADDING;
+        } else if (relativeRight > viewportRect.width - SCROLL_PADDING) {
+            scrollLeft += relativeRight - viewportRect.width + SCROLL_PADDING;
+        }
+
+        if (relativeTop < SCROLL_PADDING) {
+            scrollTop += relativeTop - SCROLL_PADDING;
+        } else if (relativeBottom > viewportRect.height - SCROLL_PADDING) {
+            scrollTop += relativeBottom - viewportRect.height + SCROLL_PADDING;
+        }
+
+        viewportEl.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'smooth' });
+    }
+
+    // ── Ctrl+scroll to zoom ──────────────────────────────────────────────────
+
+    $effect(() => {
+        if (!viewportEl) {
+            return;
+        }
+
+        function onWheel(e: WheelEvent) {
+            if (!e.ctrlKey) {
+                return;
+            }
+
+            e.preventDefault();
+            isAnimating = false;
+
+            const factor   = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+            const newScale = Math.max(minScale, Math.min(MAX_SCALE, scale * factor));
+
+            if (newScale === scale) {
+                return;
+            }
+
+            const viewportRect    = viewportEl!.getBoundingClientRect();
+            const cursorViewportX = e.clientX - viewportRect.left;
+            const cursorViewportY = e.clientY - viewportRect.top;
+            const cursorContentX  = cursorViewportX + viewportEl!.scrollLeft;
+            const cursorContentY  = cursorViewportY + viewportEl!.scrollTop;
+
+            const currentLayout = computeContentLayout(scale);
+            const svgX          = (cursorContentX - currentLayout.offsetX) / scale;
+            const svgY          = (cursorContentY - currentLayout.offsetY) / scale;
+
+            scale = newScale;
+
+            // Defer scroll adjustment until Svelte has updated the scroll container dimensions
+            requestAnimationFrame(() => {
+                if (!viewportEl) {
+                    return;
+                }
+
+                const newLayout = computeContentLayout(newScale);
+                viewportEl.scrollLeft = Math.max(0, svgX * newScale + newLayout.offsetX - cursorViewportX);
+                viewportEl.scrollTop  = Math.max(0, svgY * newScale + newLayout.offsetY - cursorViewportY);
+            });
+        }
+
+        viewportEl.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => viewportEl!.removeEventListener('wheel', onWheel);
+    });
+
+    // ── Ctrl+Plus / Ctrl+Minus / Ctrl+0 ─────────────────────────────────────
+
+    $effect(() => {
+        function onKeydown(e: KeyboardEvent) {
+            if (!e.ctrlKey) {
+                return;
+            }
+
+            if (e.key === '=' || e.key === '+') {
+                e.preventDefault();
+                scale = Math.min(MAX_SCALE, scale * 1.25);
+            } else if (e.key === '-') {
+                e.preventDefault();
+                scale = Math.max(minScale, scale / 1.25);
+            } else if (e.key === '0') {
+                e.preventDefault();
+                resetView();
+            }
+        }
+
+        document.addEventListener('keydown', onKeydown);
+
+        return () => document.removeEventListener('keydown', onKeydown);
+    });
 
     // ── Button tooltips ──────────────────────────────────────────────────────
 
@@ -120,28 +267,40 @@
 
         const cleanup: (() => void)[] = [];
 
-        // Per-button tooltip on hover (500ms delay)
-        for (const btn of layout.buttons) {
-            const el = transformEl.querySelector(`#${btn.svgElementId}`);
-            if (!el) continue;
+        for (const button of layout.buttons) {
+            const el = transformEl.querySelector(`#${button.svgElementId}`);
+
+            if (!el) {
+                continue;
+            }
 
             const enterHandler = () => {
-                const pb = activeState.physicalButtons.find(p => p.buttonCode === btn.buttonCode);
-                tooltipLabel      = btn.friendlyName;
-                tooltipAssignment = pb ? assignmentLabel(pb.assignment, configuratorStore.devices, configuratorStore.sequences, configuratorStore.states) : 'Unassigned';
-                const rect = el.getBoundingClientRect();
-                const vr = viewportEl?.getBoundingClientRect();
-                tooltipX = rect.left + rect.width / 2 - (vr?.left ?? 0);
-                tooltipY = rect.top - (vr?.top ?? 0) - 8;
+                const physicalButton = activeState.physicalButtons.find(pb => pb.buttonCode === button.buttonCode);
+                tooltipLabel      = button.friendlyName;
+                tooltipAssignment = physicalButton
+                    ? assignmentLabel(physicalButton.assignment, configuratorStore.devices, configuratorStore.sequences, configuratorStore.states)
+                    : 'Unassigned';
+
+                const elementRect  = el.getBoundingClientRect();
+                const viewportRect = viewportEl?.getBoundingClientRect();
+                tooltipX = elementRect.left + elementRect.width / 2 - (viewportRect?.left ?? 0);
+                tooltipY = elementRect.top                           - (viewportRect?.top  ?? 0) - 8;
+
                 tooltipTimer = setTimeout(() => { tooltipVisible = true; }, 300);
             };
+
             const leaveHandler = () => {
-                if (tooltipTimer !== null) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+                if (tooltipTimer !== null) {
+                    clearTimeout(tooltipTimer);
+                    tooltipTimer = null;
+                }
+
                 tooltipVisible = false;
             };
 
             el.addEventListener('mouseenter', enterHandler);
             el.addEventListener('mouseleave', leaveHandler);
+
             cleanup.push(() => {
                 el.removeEventListener('mouseenter', enterHandler);
                 el.removeEventListener('mouseleave', leaveHandler);
@@ -149,23 +308,30 @@
         }
 
         return () => {
-            if (tooltipTimer !== null) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+            if (tooltipTimer !== null) {
+                clearTimeout(tooltipTimer);
+                tooltipTimer = null;
+            }
+
             tooltipVisible = false;
-            cleanup.forEach(fn => fn());
+            cleanup.forEach(cleanupFunction => cleanupFunction());
         };
     });
 
     // ── Assignment indicator ─────────────────────────────────────────────────
 
     $effect(() => {
-        if (!transformEl) return;
+        if (!transformEl) {
+            return;
+        }
 
         transformEl.querySelectorAll('.iris-assigned').forEach(el => el.classList.remove('iris-assigned'));
 
-        const assignedCodes = new Set(activeState.physicalButtons.map(pb => pb.buttonCode));
-        for (const btn of layout.buttons) {
-            if (assignedCodes.has(btn.buttonCode)) {
-                transformEl.querySelector(`#${btn.svgElementId}`)?.classList.add('iris-assigned');
+        const assignedButtonCodes = new Set(activeState.physicalButtons.map(physicalButton => physicalButton.buttonCode));
+
+        for (const button of layout.buttons) {
+            if (assignedButtonCodes.has(button.buttonCode)) {
+                transformEl.querySelector(`#${button.svgElementId}`)?.classList.add('iris-assigned');
             }
         }
     });
@@ -179,140 +345,45 @@
 
         transformEl.querySelectorAll('.iris-selected').forEach(el => el.classList.remove('iris-selected'));
 
-        const sel = selection;
+        const currentSelection = selection;
 
-        if (!sel) {
+        if (!currentSelection) {
             return;
         }
 
-        if (sel.type === 'screen') {
+        if (currentSelection.type === 'screen') {
             transformEl.querySelector(`#${layout.screen.svgElementId}`)?.classList.add('iris-selected');
-        } else if (sel.type === 'button') {
-            const btn = layout.buttons.find(b => b.buttonCode === sel.buttonCode);
+        } else if (currentSelection.type === 'button') {
+            const button = layout.buttons.find(b => b.buttonCode === currentSelection.buttonCode);
 
-            if (btn) {
-                transformEl.querySelector(`#${btn.svgElementId}`)?.classList.add('iris-selected');
+            if (button) {
+                transformEl.querySelector(`#${button.svgElementId}`)?.classList.add('iris-selected');
             }
         }
-    });
-
-    // ── Zoom to element (animated) ───────────────────────────────────────────
-
-    function zoomToElement(el: Element) {
-        if (!viewportEl) {
-            return;
-        }
-        const vr = viewportEl.getBoundingClientRect();
-        const er = el.getBoundingClientRect();
-
-        // Element center in viewport coords (vertical only — horizontal stays centered)
-        const ecy = er.top + er.height / 2 - vr.top;
-
-        // Same point in local (pre-transform) coords
-        const localY = (ecy - ty) / scale;
-
-        // Target: the element fills ~35% of the viewport's shorter dimension
-        const elSize     = Math.max(er.width, er.height);
-        const targetSize = Math.min(vr.width, vr.height) * 0.35;
-        const targetScale = elSize > 0
-            ? Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (targetSize / elSize)))
-            : scale;
-
-        isAnimating = true;
-        tx    = (vr.width - svgNaturalWidth * targetScale) / 2;
-        ty    = vr.height / 2 - localY * targetScale;
-        scale = targetScale;
-        setTimeout(() => {
-            isAnimating = false;
-        }, 420);
-    }
-
-    // ── Wheel zoom (passive:false so we can preventDefault) ─────────────────
-
-    $effect(() => {
-        if (!viewportEl) {
-            return;
-        }
-
-        function onWheel(e: WheelEvent) {
-            e.preventDefault();
-            isAnimating = false;
-            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-            const vr = viewportEl!.getBoundingClientRect();
-            const my = e.clientY - vr.top;
-            const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
-            // Horizontal: always keep remote centered; vertical: zoom around cursor
-            tx    = (vr.width - svgNaturalWidth * newScale) / 2;
-            ty    = my - (my - ty) * factor;
-            scale = newScale;
-        }
-        viewportEl.addEventListener('wheel', onWheel, { passive: false });
-        return () => viewportEl!.removeEventListener('wheel', onWheel);
-    });
-
-    // ── Pan (document-level so drag keeps working outside the viewport) ──────
-
-    function handleMousedown(e: MouseEvent) {
-        if (e.button !== 0) {
-            return;
-        }
-        isDragging = true;
-        dragMoved  = false;
-        lastMx     = e.clientX;
-        lastMy     = e.clientY;
-        isAnimating = false;
-        document.documentElement.style.cursor = 'grabbing';
-        document.addEventListener('mousemove', onDocMousemove);
-        document.addEventListener('mouseup',   onDocMouseup);
-    }
-
-    function onDocMousemove(e: MouseEvent) {
-        const dx = e.clientX - lastMx;
-        const dy = e.clientY - lastMy;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-            dragMoved = true;
-        }
-        ty += dy;
-        lastMx = e.clientX;
-        lastMy = e.clientY;
-    }
-
-    function onDocMouseup() {
-        isDragging = false;
-        document.documentElement.style.cursor = '';
-        document.removeEventListener('mousemove', onDocMousemove);
-        document.removeEventListener('mouseup',   onDocMouseup);
-        // rAF: click events fire after mouseup in the same task; this ensures
-        // click handlers can still read dragMoved before it resets
-        requestAnimationFrame(() => {
-            dragMoved = false;
-        });
-    }
-
-    // Clean up if component is destroyed while dragging
-    $effect(() => () => {
-        document.documentElement.style.cursor = '';
-        document.removeEventListener('mousemove', onDocMousemove);
-        document.removeEventListener('mouseup',   onDocMouseup);
     });
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-    class="viewport"
-    class:dragging={isDragging}
-    bind:this={viewportEl}
-    onmousedown={handleMousedown}
-    onclick={handleCanvasClick}
->
+<div class="preview-root">
     <div
-        class="transform-layer"
-        class:animating={isAnimating}
-        bind:this={transformEl}
-        style="transform: translate({tx}px, {ty}px) scale({scale}); transform-origin: 0 0;"
+        class="scroll-viewport"
+        bind:this={viewportEl}
+        onclick={handleCanvasClick}
     >
-        {@html layout.svgContent}
+        <div
+            class="scroll-content"
+            style="width: {contentWidth}px; height: {contentHeight}px;"
+        >
+            <div
+                class="transform-layer"
+                class:animating={isAnimating}
+                bind:this={transformEl}
+                style="left: {offsetX}px; top: {offsetY}px; transform: scale({scale}); transform-origin: 0 0;"
+            >
+                {@html layout.svgContent}
+            </div>
+        </div>
     </div>
 
     <div class="hud" aria-hidden="true">
@@ -321,7 +392,7 @@
         <button class="hud-btn" onclick={resetView}>Fit</button>
     </div>
 
-    <p class="hint" aria-hidden="true">Scroll to zoom · Drag to pan · Click to focus</p>
+    <p class="hint" aria-hidden="true">Ctrl+Scroll to zoom · Scroll to pan · Click to focus</p>
 
     {#if tooltipVisible}
         <div class="btn-tooltip" style="left: {tooltipX}px; top: {tooltipY}px">
@@ -332,13 +403,10 @@
 </div>
 
 <style>
-    .viewport {
+    .preview-root {
         flex: 1;
         position: relative;
         overflow: hidden;
-        cursor: grab;
-        user-select: none;
-        /* Subtle radial gradient so the canvas feels distinct from the page bg */
         background: radial-gradient(
             ellipse at 50% 40%,
             color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 5%, light-dark(var(--color-surface-50), var(--color-surface-900))),
@@ -346,14 +414,23 @@
         );
     }
 
-    .viewport.dragging { cursor: grabbing; }
+    .scroll-viewport {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+        user-select: none;
+    }
+
+    /* ── Scroll content (sizes the scrollable area to the scaled remote) ─── */
+
+    .scroll-content {
+        position: relative;
+    }
 
     /* ── Transform layer ────────────────────────────────────────────────── */
 
     .transform-layer {
         position: absolute;
-        top: 0;
-        left: 0;
         transform-origin: 0 0;
         will-change: transform;
     }
@@ -450,7 +527,6 @@
 
     /* ── SVG borders: assigned + selected ──────────────────────────────── */
 
-    /* Assigned (not selected): subtle primary border */
     :global(.iris-assigned:not(.iris-selected)) {
         filter:
             drop-shadow(2px 0 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent))
@@ -459,7 +535,6 @@
             drop-shadow(0 -2px 0 color-mix(in srgb, light-dark(var(--color-primary-600), var(--color-primary-400)) 45%, transparent));
     }
 
-    /* Selected: full-strength primary border */
     :global(.iris-selected) {
         filter:
             drop-shadow(2px 0 0 light-dark(var(--color-primary-600), var(--color-primary-400)))
