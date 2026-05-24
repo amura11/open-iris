@@ -1,10 +1,10 @@
 <script lang="ts">
     import { assignmentLabel } from '@utils/label-utils.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import { uiStore } from '@stores/ui-store.svelte.ts';
 
-    let layout      = $derived(configStore.layout!);
-    let activeState = $derived(configStore.selectedState);
+    let layout      = $derived(configuratorStore.layout!);
+    let activeState = $derived(configuratorStore.selectedState);
     let selection   = $derived(uiStore.selection);
 
     let tooltipVisible    = $state(false);
@@ -128,7 +128,7 @@
             const enterHandler = () => {
                 const pb = activeState.physicalButtons.find(p => p.buttonCode === btn.buttonCode);
                 tooltipLabel      = btn.friendlyName;
-                tooltipAssignment = pb ? assignmentLabel(pb.assignment, configStore.devices, configStore.sequences, configStore.states) : 'Unassigned';
+                tooltipAssignment = pb ? assignmentLabel(pb.assignment, configuratorStore.devices, configuratorStore.sequences, configuratorStore.states) : 'Unassigned';
                 const rect = el.getBoundingClientRect();
                 const vr = viewportEl?.getBoundingClientRect();
                 tooltipX = rect.left + rect.width / 2 - (vr?.left ?? 0);

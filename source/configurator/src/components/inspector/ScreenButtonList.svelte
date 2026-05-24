@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { State, ScreenButton } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
-    import { removeScreenButtonAssignment } from '@services/assignment-service.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
+    import { removeScreenButtonAssignment } from '@utils/assignment-utils.ts';
     import ScreenButtonRow from './ScreenButtonRow.svelte';
 
     interface Props {
@@ -18,14 +18,14 @@
 
     function addButton() {
         const newButton: ScreenButton = { id: nextButtonId, label: 'New Button', assignment: null };
-        configStore.updateState({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
+        configuratorStore.updateState({ ...stateData, screenButtons: [...stateData.screenButtons, newButton] });
     }
 
     function removeButton(button: ScreenButton) {
         const updatedState: State = { ...stateData, screenButtons: stateData.screenButtons.filter(b => b.id !== button.id) };
-        configStore.updateState(updatedState);
+        configuratorStore.updateState(updatedState);
         if (button.assignment?.kind === 'sequence') {
-            configStore.deleteAnonymousSequence(button.assignment.sequenceId);
+            configuratorStore.deleteAnonymousSequence(button.assignment.sequenceId);
         }
     }
 </script>

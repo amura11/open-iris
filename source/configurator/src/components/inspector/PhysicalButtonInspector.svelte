@@ -1,12 +1,12 @@
 <script lang="ts">
     import type { ButtonDescriptor } from '@layout/layout-types.ts';
     import type { SequenceStep } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import {
         assignPhysicalButtonSingleAction,
         assignPhysicalButtonSequence,
         assignPhysicalButtonNamedSequence,
-    } from '@services/assignment-service.ts';
+    } from '@utils/assignment-utils.ts';
     import ButtonActionPanel from './ButtonActionPanel.svelte';
 
     interface Props {
@@ -16,7 +16,7 @@
     let { button }: Props = $props();
 
     let buttonConfig = $derived(
-        configStore.selectedState.physicalButtons.find(b => b.buttonCode === button.buttonCode) ?? null
+        configuratorStore.selectedState.physicalButtons.find(b => b.buttonCode === button.buttonCode) ?? null
     );
 
     let currentAssignment = $derived(buttonConfig?.assignment ?? null);

@@ -1,12 +1,15 @@
 import type { State, Device, Sequence, SequenceStep, StateId, SequenceId, DeviceId } from '@model/configurator-types.ts';
 import type { WireConfig, WireIdCounters, WireState, WireDevice, WireDeviceFunction, WireSequence, WireDeviceMetadata, WireFunctionMetadata, WireSequenceMetadata, WireJsonObject } from '@model/wire-types.ts';
 import type { RemoteLayout } from '@layout/layout-types.ts';
-import type { CatalogDevice } from '@catalog/catalog-source.ts';
+import type { CatalogDevice } from '@model/device-catalog-types.ts';
 import { loadLayout as loadLayoutFile } from '@layout/layout-loader.ts';
 import { loadAppConfig } from '../app-config.ts';
 import {
     SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE, IRIS_NO_ID,
 } from '@model/serialization.ts';
+import { DeviceService } from '@services/device-service.ts';
+import { ImportExportService } from '@services/import-export-service.ts';
+import { FakeCatalogProvider } from '@catalog/fake-catalog-provider.ts';
 
 const DEFAULT_ROOT_STATE: State = {
     id:              0,
@@ -74,6 +77,9 @@ class ConfiguratorStore {
     selectedStateId = $state<StateId>(0);
     layout          = $state<RemoteLayout | null>(null);
     loadError       = $state<string | null>(null);
+
+    readonly deviceService       = new DeviceService([new FakeCatalogProvider()]);
+    readonly importExportService = new ImportExportService();
 
     private idCounters = $state<WireIdCounters>({ ...DEFAULT_ID_COUNTERS });
 
@@ -330,4 +336,4 @@ class ConfiguratorStore {
     }
 }
 
-export const configStore = new ConfiguratorStore();
+export const configuratorStore = new ConfiguratorStore();

@@ -478,7 +478,7 @@ async function decompressMetadata(bytes: Uint8Array, dataOffset: number, byteLen
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function serialize(config: WireConfig): Promise<Uint8Array> {
+async function serializeConfig(config: WireConfig): Promise<Uint8Array> {
     const sectionCount = 6;
     const manifestSize = 2 + sectionCount * MANIFEST_ENTRY_SIZE;
 
@@ -566,7 +566,7 @@ export async function serialize(config: WireConfig): Promise<Uint8Array> {
     ]);
 }
 
-export async function deserialize(bytes: Uint8Array): Promise<WireConfig> {
+async function deserializeConfig(bytes: Uint8Array): Promise<WireConfig> {
     for (let i = 0; i < 4; i++) {
         if (bytes[i] !== MAGIC[i]) {
             throw new Error('Invalid file: missing IRIS magic bytes');
@@ -678,4 +678,14 @@ export async function deserialize(bytes: Uint8Array): Promise<WireConfig> {
         dataBlocks: wireDataBlocks,
         metadata,
     };
+}
+
+export class ImportExportService {
+    async serialize(config: WireConfig): Promise<Uint8Array> {
+        return serializeConfig(config);
+    }
+
+    async deserialize(bytes: Uint8Array): Promise<WireConfig> {
+        return deserializeConfig(bytes);
+    }
 }

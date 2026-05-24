@@ -1,7 +1,7 @@
 <script lang="ts">
     import { SearchIcon, CheckIcon, ListVideoIcon, XIcon } from '@lucide/svelte';
     import type { ActionPickerSelection } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import NavigateActionEditor from './NavigateActionEditor.svelte';
     import PauseActionEditor from './PauseActionEditor.svelte';
 
@@ -42,7 +42,7 @@
     };
 
     let allItems = $derived.by((): PickerItem[] => {
-        const deviceItems: DeviceItem[] = configStore.devices.flatMap(device =>
+        const deviceItems: DeviceItem[] = configuratorStore.devices.flatMap(device =>
             device.functions.map(deviceFunction => ({
                 kind: 'device' as const,
                 device,
@@ -57,7 +57,7 @@
         ];
 
         const namedItems: NamedSequenceItem[] = mode === 'single'
-            ? configStore.sequences
+            ? configuratorStore.sequences
                 .filter(s => s.name !== undefined)
                 .map(s => ({ kind: 'named_sequence' as const, sequenceId: s.id, name: s.name! }))
             : [];

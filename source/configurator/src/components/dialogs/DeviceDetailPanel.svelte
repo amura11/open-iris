@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { CatalogDevice, CatalogDeviceFunction } from '@catalog/catalog-source.ts';
+    import type { CatalogDevice, CatalogDeviceFunction } from '@model/device-catalog-types.ts';
 
     interface Props {
         device: CatalogDevice;

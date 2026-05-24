@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
 
     interface Props {
         onConfirm: (targetStateId: number) => void;
@@ -8,7 +8,7 @@
 
     let { onConfirm, onCancel }: Props = $props();
 
-    let states = $derived(configStore.states);
+    let states = $derived(configuratorStore.states);
 
     let selectedStateId = $state('');
 

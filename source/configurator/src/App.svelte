@@ -2,16 +2,15 @@
     import { CpuIcon, UploadIcon, DownloadIcon, PlusCircleIcon, PencilIcon, Trash2Icon, OctagonAlertIcon, TriangleAlertIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
     import type { State } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import { uiStore } from '@stores/ui-store.svelte.ts';
-    import { serialize, deserialize } from '@services/import-export-service.ts';
     import { downloadFile, pickFile } from '@utils/file-utils.ts';
     import RemotePreview from '@components/preview/RemotePreview.svelte';
     import InspectorPanel from '@components/inspector/InspectorPanel.svelte';
     import StateEditDialog from '@components/dialogs/StateEditDialog.svelte';
     import DeviceDiscoveryDialog from '@components/dialogs/DeviceDiscoveryDialog.svelte';
 
-    configStore.loadLayout();
+    configuratorStore.loadLayout();
 
     // ── Panel resize ──────────────────────────────────────────────────────────
 
@@ -36,22 +35,22 @@
     // ── State CRUD ────────────────────────────────────────────────────────────
 
     function handleStateChange(e: Event) {
-        configStore.selectState(Number((e.target as HTMLSelectElement).value));
+        configuratorStore.selectState(Number((e.target as HTMLSelectElement).value));
     }
 
     function handleStateEditConfirm(draft: State) {
         if (uiStore.stateEditDialog.mode === 'create') {
-            const newId = configStore.addState(draft);
-            configStore.selectState(newId);
+            const newId = configuratorStore.addState(draft);
+            configuratorStore.selectState(newId);
             uiStore.clearSelection();
         } else {
-            configStore.updateState(draft);
+            configuratorStore.updateState(draft);
         }
         uiStore.closeStateEditDialog();
     }
 
     function confirmStateDelete() {
-        configStore.deleteState(configStore.selectedStateId);
+        configuratorStore.deleteState(configuratorStore.selectedStateId);
         uiStore.clearSelection();
         uiStore.closeDeleteDialog();
     }
@@ -59,14 +58,14 @@
     // ── Import / export ───────────────────────────────────────────────────────
 
     async function handleExport() {
-        const bytes = await serialize(configStore.toWireConfig());
+        const bytes = await configuratorStore.importExportService.serialize(configuratorStore.toWireConfig());
         downloadFile(bytes, 'remote.bin');
     }
 
     async function handleImport() {
         try {
             const bytes = await pickFile('.bin');
-            configStore.loadFromWireConfig(await deserialize(bytes));
+            configuratorStore.loadFromWireConfig(await configuratorStore.importExportService.deserialize(bytes));
             uiStore.setImportError(null);
         } catch (error) {
             uiStore.setImportError(`Import failed: ${error}`);
@@ -101,35 +100,35 @@
             <button class="btn btn-sm hover:preset-tonal" onclick={() => { uiStore.deviceDialogOpen = true; }}>
                 <CpuIcon class="size-4" />
                 Devices
-                {#if configStore.devices.length > 0}
+                {#if configuratorStore.devices.length > 0}
                     <span class="badge preset-filled-primary-500 rounded-full">
-                        {configStore.devices.length}
+                        {configuratorStore.devices.length}
                     </span>
                 {/if}
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn btn-sm hover:preset-tonal" title="Import remote.bin" onclick={handleImport} disabled={!configStore.layout}>
+            <button class="btn btn-sm hover:preset-tonal" title="Import remote.bin" onclick={handleImport} disabled={!configuratorStore.layout}>
                 <UploadIcon class="size-4" />
                 Import
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn btn-sm preset-filled-primary-500" title="Export remote.bin" onclick={handleExport} disabled={!configStore.layout}>
+            <button class="btn btn-sm preset-filled-primary-500" title="Export remote.bin" onclick={handleExport} disabled={!configuratorStore.layout}>
                 <DownloadIcon class="size-4" />
                 Export
             </button>
         </div>
     </header>
 
-    {#if configStore.layout}
+    {#if configuratorStore.layout}
         <div class="state-bar flex justify-center items-center gap-1 px-4 py-2 bg-surface-100-900 border-b border-surface-200-800 shrink-0">
             <select
                 class="select w-64"
-                value={String(configStore.selectedStateId)}
+                value={String(configuratorStore.selectedStateId)}
                 onchange={handleStateChange}
             >
-                {#each configStore.states as s (s.id)}
+                {#each configuratorStore.states as s (s.id)}
                     <option value={String(s.id)}>{s.name}</option>
                 {/each}
             </select>
@@ -140,7 +139,7 @@
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={() => uiStore.openStateEdit(configStore.selectedState)}>
+            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={() => uiStore.openStateEdit(configuratorStore.selectedState)}>
                 <PencilIcon class="size-4" />
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -148,8 +147,8 @@
             <button
                 class="btn-icon hover:preset-tonal"
                 title="Delete state"
-                disabled={configStore.selectedState.stateType === 'root'}
-                onclick={() => uiStore.openDeleteDialog(configStore.selectedState.name)}
+                disabled={configuratorStore.selectedState.stateType === 'root'}
+                onclick={() => uiStore.openDeleteDialog(configuratorStore.selectedState.name)}
             >
                 <Trash2Icon class="size-4" />
             </button>
@@ -161,17 +160,17 @@
         from expanding to fit its content and breaking the layout.
     -->
     <main class="flex flex-1 min-h-0 overflow-hidden">
-        {#if configStore.loadError}
+        {#if configuratorStore.loadError}
             <div class="flex w-full justify-center items-center">
                 <div class="card bg-surface-100-900 preset-outlined-error-500 p-4 w-96 max-w-[90vw] space-y-3 shadow-md">
                     <div class="flex items-center gap-3">
                         <OctagonAlertIcon class="size-5 text-error-500" />
                         <span class="font-semibold">Load Error</span>
                     </div>
-                    <p class="m-0 text-sm text-surface-500-400">{configStore.loadError}</p>
+                    <p class="m-0 text-sm text-surface-500-400">{configuratorStore.loadError}</p>
                 </div>
             </div>
-        {:else if configStore.layout}
+        {:else if configuratorStore.layout}
             <RemotePreview />
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <div
@@ -206,9 +205,9 @@
 
     <DeviceDiscoveryDialog
         bind:open={uiStore.deviceDialogOpen}
-        installedDevices={configStore.devices}
-        onAdd={(device) => configStore.addDevice(device)}
-        onRemove={(deviceId) => configStore.removeDevice(deviceId)}
+        installedDevices={configuratorStore.devices}
+        onAdd={(device) => configuratorStore.addDevice(device)}
+        onRemove={(deviceId) => configuratorStore.removeDevice(deviceId)}
     />
 
     <StateEditDialog

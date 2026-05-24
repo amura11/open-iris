@@ -2,7 +2,7 @@
     import { Trash2Icon, XIcon } from '@lucide/svelte';
     import type { ScreenButton } from '@model/configurator-types.ts';
     import { assignmentLabel } from '@utils/label-utils.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
 
     interface Props {
         button:   ScreenButton;
@@ -23,7 +23,7 @@
         <span class="truncate text-sm">{button.label}</span>
         {#if currentAssignment}
             <span class="assignment-chip text-xs truncate">
-                {assignmentLabel(currentAssignment, configStore.devices, configStore.sequences, configStore.states)}
+                {assignmentLabel(currentAssignment, configuratorStore.devices, configuratorStore.sequences, configuratorStore.states)}
             </span>
         {:else}
             <span class="unassigned-chip text-xs">Unassigned</span>

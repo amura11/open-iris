@@ -1,11 +1,11 @@
 <script lang="ts">
     import type { ScreenButton, SequenceStep } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import {
         assignScreenButtonSingleAction,
         assignScreenButtonSequence,
         assignScreenButtonNamedSequence,
-    } from '@services/assignment-service.ts';
+    } from '@utils/assignment-utils.ts';
     import ButtonActionPanel from './ButtonActionPanel.svelte';
 
     interface Props {
@@ -26,8 +26,8 @@
     function saveLabel() {
         const trimmed = pendingLabel.trim();
         if (!trimmed || trimmed === button.label) return;
-        const activeState = configStore.selectedState;
-        configStore.updateState({
+        const activeState = configuratorStore.selectedState;
+        configuratorStore.updateState({
             ...activeState,
             screenButtons: activeState.screenButtons.map(b =>
                 b.id === button.id ? { ...b, label: trimmed } : b

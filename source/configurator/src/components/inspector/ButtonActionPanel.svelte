@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { SequenceStep, BackToSingleContext, ButtonAssignment } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import {
         SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE,
     } from '@model/serialization.ts';
@@ -23,7 +23,7 @@
             return false;
         }
 
-        const sequence = configStore.sequences.find(s => s.id === assignment.sequenceId);
+        const sequence = configuratorStore.sequences.find(s => s.id === assignment.sequenceId);
         return sequence?.name !== undefined;
     }
 
@@ -33,7 +33,7 @@
                 return 'sequence';
             }
 
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
             if (sequence && sequence.steps.length > 1) {
                 return 'sequence';
@@ -45,7 +45,7 @@
 
     function resolveInitialSteps(): SequenceStep[] {
         if (currentAssignment?.kind === 'sequence') {
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
             if (sequence) {
                 return sequence.steps;
@@ -57,7 +57,7 @@
 
     function resolveInitialName(): string {
         if (currentAssignment?.kind === 'sequence') {
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
             return sequence?.name ?? '';
         }
         return '';
@@ -65,7 +65,7 @@
 
     function resolveInitialDelay(): number {
         if (currentAssignment?.kind === 'sequence') {
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
             return sequence?.delayMs ?? 200;
         }
         return 200;
@@ -84,7 +84,7 @@
 
     function resolveInitialHasBeenNamed(): boolean {
         if (currentAssignment?.kind === 'sequence') {
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
             return sequence?.name !== undefined;
         }
         return false;
@@ -106,7 +106,7 @@
                 return 'system:power_off_active';
             }
 
-            const device = configStore.devices.find(d => d.id === deviceId);
+            const device = configuratorStore.devices.find(d => d.id === deviceId);
             const deviceFunction = device?.functions.find(f => f.id === functionId);
 
             if (device && deviceFunction) {
@@ -119,7 +119,7 @@
                 return `named:${currentAssignment.sequenceId}`;
             }
 
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
             if (sequence && sequence.steps.length === 1) {
                 const step = sequence.steps[0];
@@ -177,7 +177,7 @@
     }
 
     function handleSelectNamed(sequenceId: number) {
-        const sequence = configStore.sequences.find(s => s.id === sequenceId);
+        const sequence = configuratorStore.sequences.find(s => s.id === sequenceId);
 
         sequenceInitialSteps        = sequence?.steps ?? [];
         sequenceInitialName         = sequence?.name ?? '';
@@ -204,14 +204,14 @@
                     firstSteps.push({ kind: 'power_off_active' });
                 }
             } else {
-                const device = configStore.devices.find(d => d.id === deviceId);
+                const device = configuratorStore.devices.find(d => d.id === deviceId);
                 const deviceFunction = device?.functions.find(f => f.id === functionId);
                 if (device && deviceFunction) {
                     firstSteps.push({ kind: 'device', device, deviceFunction });
                 }
             }
         } else if (currentAssignment?.kind === 'sequence') {
-            const sequence = configStore.sequences.find(s => s.id === currentAssignment.sequenceId);
+            const sequence = configuratorStore.sequences.find(s => s.id === currentAssignment.sequenceId);
 
             if (sequence) {
                 firstSteps.push(...sequence.steps);

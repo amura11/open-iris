@@ -2,7 +2,8 @@
     import { CpuIcon, SearchIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal, Tabs } from '@skeletonlabs/skeleton-svelte';
     import type { Device, DeviceId } from '@model/configurator-types.ts';
-    import { HardcodedCatalogSource, type CatalogDevice } from '@catalog/catalog-source.ts';
+    import type { CatalogDevice } from '@model/device-catalog-types.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import DeviceDetailPanel from './DeviceDetailPanel.svelte';
 
     interface Props {
@@ -14,15 +15,13 @@
 
     let { open = $bindable(false), installedDevices, onAdd, onRemove }: Props = $props();
 
-    const catalog = new HardcodedCatalogSource();
-
     let browseQuery    = $state('');
     let installedQuery = $state('');
     let selectedDevice = $state<CatalogDevice | null>(null);
     let catalogResults = $state<CatalogDevice[]>([]);
 
     $effect(() => {
-        catalog.search(browseQuery).then((results: CatalogDevice[]) => { catalogResults = results; });
+        configuratorStore.deviceService.search(browseQuery).then((results: CatalogDevice[]) => { catalogResults = results; });
     });
 
     const filteredInstalled = $derived(
@@ -35,8 +34,8 @@
         })
     );
 
-    function isInstalled(sourceId: string): boolean {
-        return installedDevices.some(d => d.sourceId === sourceId);
+    function isInstalled(deviceUuid: string): boolean {
+        return installedDevices.some(d => d.sourceId === deviceUuid);
     }
 
     function handleAdd(device: CatalogDevice) {
@@ -48,7 +47,7 @@
         const removedDevice = installedDevices.find(d => d.id === deviceId);
         onRemove(deviceId);
 
-        if (removedDevice?.sourceId && selectedDevice?.sourceId === removedDevice.sourceId) {
+        if (removedDevice?.sourceId && selectedDevice?.uuid === removedDevice.sourceId) {
             selectedDevice = null;
         }
     }
@@ -104,13 +103,13 @@
                                 </div>
                             </div>
                             <div class="flex-1 overflow-y-auto">
-                                {#each catalogResults as device (device.sourceId)}
-                                    {@const installed = isInstalled(device.sourceId)}
+                                {#each catalogResults as device (device.uuid)}
+                                    {@const installed = isInstalled(device.uuid)}
                                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                                     <div
                                         class="device-row flex items-center justify-between px-3 py-2 gap-2 cursor-pointer border-b border-surface-200-800"
-                                        class:selected={selectedDevice?.sourceId === device.sourceId}
+                                        class:selected={selectedDevice?.uuid === device.uuid}
                                         onclick={() => { selectedDevice = device; }}
                                     >
                                         <div class="flex flex-col gap-1 min-w-0">

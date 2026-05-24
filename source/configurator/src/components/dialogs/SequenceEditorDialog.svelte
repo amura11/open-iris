@@ -3,7 +3,7 @@
     import { Dialog, Portal, Switch } from '@skeletonlabs/skeleton-svelte';
     import { untrack } from 'svelte';
     import type { SequenceStep, SequenceEditorConfirmation } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import ActionPicker from '@components/action/ActionPicker.svelte';
 
     interface Props {
@@ -38,7 +38,7 @@
             return `${selection.device.name} → ${selection.deviceFunction.name}`;
         }
         if (selection.kind === 'navigate') {
-            const targetState = configStore.states.find(s => s.id === selection.targetStateId);
+            const targetState = configuratorStore.states.find(s => s.id === selection.targetStateId);
             return `Navigate → ${targetState?.name ?? 'Unknown'}`;
         }
         if (selection.kind === 'pause') {

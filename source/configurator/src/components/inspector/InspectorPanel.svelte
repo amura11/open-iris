@@ -1,14 +1,14 @@
 <script lang="ts">
     import { ChevronLeftIcon } from '@lucide/svelte';
     import type { ScreenButton } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import { uiStore } from '@stores/ui-store.svelte.ts';
-    import { removePhysicalButtonAssignment } from '@services/assignment-service.ts';
+    import { removePhysicalButtonAssignment } from '@utils/assignment-utils.ts';
     import ScreenInspector from './ScreenInspector.svelte';
     import PhysicalButtonInspector from './PhysicalButtonInspector.svelte';
 
     let selection = $derived(uiStore.selection);
-    let layout    = $derived(configStore.layout);
+    let layout    = $derived(configuratorStore.layout);
     let width     = $derived(uiStore.panel.width);
 
     let activeButton = $derived.by(() => {
@@ -20,7 +20,7 @@
 
     let canClear = $derived(
         selection?.type === 'button' &&
-        configStore.selectedState.physicalButtons.some(b => b.buttonCode === selection.buttonCode)
+        configuratorStore.selectedState.physicalButtons.some(b => b.buttonCode === selection.buttonCode)
     );
 
     // ── Screen button detail navigation ──────────────────────────────────────
@@ -29,7 +29,7 @@
 
     let selectedScreenButton = $derived(
         selectedScreenButtonId !== null && selection?.type === 'screen'
-            ? configStore.selectedState.screenButtons.find(b => b.id === selectedScreenButtonId) ?? null
+            ? configuratorStore.selectedState.screenButtons.find(b => b.id === selectedScreenButtonId) ?? null
             : null
     );
 

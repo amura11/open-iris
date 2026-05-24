@@ -3,7 +3,7 @@
     import { GripVerticalIcon, XIcon } from '@lucide/svelte';
     import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
     import type { SequenceStep, BackToSingleContext } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import ActionCombobox from './ActionCombobox.svelte';
 
     interface Props {
@@ -100,7 +100,7 @@
         }
 
         if (step.kind === 'navigate') {
-            const target = configStore.states.find(s => s.id === step.targetStateId);
+            const target = configuratorStore.states.find(s => s.id === step.targetStateId);
             return `Navigate → ${target?.name ?? 'Unknown'}`;
         }
 

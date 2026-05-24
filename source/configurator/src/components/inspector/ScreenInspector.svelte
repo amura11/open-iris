@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { ScreenButton } from '@model/configurator-types.ts';
-    import { configStore } from '@stores/config-store.svelte.ts';
+    import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import ScreenButtonList from './ScreenButtonList.svelte';
     import ScreenButtonInspector from './ScreenButtonInspector.svelte';
 
@@ -15,5 +15,5 @@
 {#if selectedButton !== null}
     <ScreenButtonInspector button={selectedButton} />
 {:else}
-    <ScreenButtonList state={configStore.selectedState} onSelect={onSelect} />
+    <ScreenButtonList state={configuratorStore.selectedState} onSelect={onSelect} />
 {/if}
