@@ -75,26 +75,62 @@
 
 <div class="flex flex-col h-screen overflow-hidden bg-surface-50-900">
 
-    <header class="flex items-center gap-6 py-3 px-6 bg-surface-100-900/80 backdrop-blur-sm border-b border-surface-200-800 sticky top-0 z-10">
-        <a class="flex items-center gap-2 no-underline font-mono font-semibold text-xl leading-tight" href="/" aria-label="OpenIRis home">
-            <svg class="mark-icon shrink-0" viewBox="0 0 100 100" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="40" fill="none" stroke-width="2.5" class="mark-primary-stroke"/>
-                <circle cx="50" cy="50" r="15" class="mark-primary-fill"/>
-                <line x1="50" y1="10" x2="50" y2="22" stroke-width="2.5" class="mark-primary-stroke"/>
-                <line x1="50" y1="78" x2="50" y2="90" stroke-width="2.5" class="mark-primary-stroke"/>
-                <line x1="10" y1="50" x2="22" y2="50" stroke-width="2.5" class="mark-primary-stroke"/>
-                <line x1="78" y1="50" x2="90" y2="50" stroke-width="2.5" class="mark-primary-stroke"/>
-                <line x1="22" y1="22" x2="29" y2="29" stroke-width="2" class="mark-secondary-stroke"/>
-                <line x1="78" y1="22" x2="71" y2="29" stroke-width="2" class="mark-secondary-stroke"/>
-                <line x1="78" y1="78" x2="71" y2="71" stroke-width="2" class="mark-secondary-stroke"/>
-                <line x1="22" y1="78" x2="29" y2="71" stroke-width="2" class="mark-secondary-stroke"/>
-                <circle cx="50" cy="50" r="4.5" class="mark-accent-fill"/>
-            </svg>
-            <span class="wordmark-open">Open</span><span class="wordmark-ir">IR</span><span class="wordmark-is">is</span>
-        </a>
-        <span class="font-mono text-[0.625rem] font-normal tracking-widest text-surface-500-400 uppercase self-end pb-0.5">OPEN SOURCE UNIVERSAL REMOTE</span>
+    <header class="grid grid-cols-[1fr_auto_1fr] items-center py-3 px-6 bg-surface-100-900/80 backdrop-blur-sm border-b border-surface-200-800 sticky top-0 z-10">
+        <div class="flex items-center gap-6">
+            <a class="flex items-center gap-2 no-underline font-mono font-semibold text-xl leading-tight" href="/" aria-label="OpenIRis home">
+                <svg class="mark-icon shrink-0" viewBox="0 0 100 100" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke-width="2.5" class="mark-primary-stroke"/>
+                    <circle cx="50" cy="50" r="15" class="mark-primary-fill"/>
+                    <line x1="50" y1="10" x2="50" y2="22" stroke-width="2.5" class="mark-primary-stroke"/>
+                    <line x1="50" y1="78" x2="50" y2="90" stroke-width="2.5" class="mark-primary-stroke"/>
+                    <line x1="10" y1="50" x2="22" y2="50" stroke-width="2.5" class="mark-primary-stroke"/>
+                    <line x1="78" y1="50" x2="90" y2="50" stroke-width="2.5" class="mark-primary-stroke"/>
+                    <line x1="22" y1="22" x2="29" y2="29" stroke-width="2" class="mark-secondary-stroke"/>
+                    <line x1="78" y1="22" x2="71" y2="29" stroke-width="2" class="mark-secondary-stroke"/>
+                    <line x1="78" y1="78" x2="71" y2="71" stroke-width="2" class="mark-secondary-stroke"/>
+                    <line x1="22" y1="78" x2="29" y2="71" stroke-width="2" class="mark-secondary-stroke"/>
+                    <circle cx="50" cy="50" r="4.5" class="mark-accent-fill"/>
+                </svg>
+                <span class="wordmark-open">Open</span><span class="wordmark-ir">IR</span><span class="wordmark-is">is</span>
+            </a>
+            <span class="font-mono text-[0.625rem] font-normal tracking-widest text-surface-500-400 uppercase self-end pb-0.5">OPEN SOURCE UNIVERSAL REMOTE</span>
+        </div>
 
-        <div class="flex items-center gap-3 ml-auto">
+        <div class="flex items-center gap-1">
+            {#if configuratorStore.layout}
+                <select
+                    class="select w-56"
+                    value={String(configuratorStore.selectedStateId)}
+                    onchange={handleStateChange}
+                >
+                    {#each configuratorStore.states as s (s.id)}
+                        <option value={String(s.id)}>{s.name}</option>
+                    {/each}
+                </select>
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <button class="btn-icon hover:preset-tonal" title="Add state" onclick={() => uiStore.openStateCreate()}>
+                    <PlusCircleIcon class="size-4" />
+                </button>
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={() => uiStore.openStateEdit(configuratorStore.selectedState)}>
+                    <PencilIcon class="size-4" />
+                </button>
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <button
+                    class="btn-icon hover:preset-tonal"
+                    title="Delete state"
+                    disabled={configuratorStore.selectedState.stateType === 'root'}
+                    onclick={() => uiStore.openDeleteDialog(configuratorStore.selectedState.name)}
+                >
+                    <Trash2Icon class="size-4" />
+                </button>
+            {/if}
+        </div>
+
+        <div class="flex items-center gap-3 justify-end">
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <button class="btn btn-sm hover:preset-tonal" onclick={() => { uiStore.deviceDialogOpen = true; }}>
@@ -120,40 +156,6 @@
             </button>
         </div>
     </header>
-
-    {#if configuratorStore.layout}
-        <div class="state-bar flex justify-center items-center gap-1 px-4 py-2 bg-surface-100-900 border-b border-surface-200-800 shrink-0">
-            <select
-                class="select w-64"
-                value={String(configuratorStore.selectedStateId)}
-                onchange={handleStateChange}
-            >
-                {#each configuratorStore.states as s (s.id)}
-                    <option value={String(s.id)}>{s.name}</option>
-                {/each}
-            </select>
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn-icon hover:preset-tonal" title="Add state" onclick={() => uiStore.openStateCreate()}>
-                <PlusCircleIcon class="size-4" />
-            </button>
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button class="btn-icon hover:preset-tonal" title="Edit state" onclick={() => uiStore.openStateEdit(configuratorStore.selectedState)}>
-                <PencilIcon class="size-4" />
-            </button>
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <button
-                class="btn-icon hover:preset-tonal"
-                title="Delete state"
-                disabled={configuratorStore.selectedState.stateType === 'root'}
-                onclick={() => uiStore.openDeleteDialog(configuratorStore.selectedState.name)}
-            >
-                <Trash2Icon class="size-4" />
-            </button>
-        </div>
-    {/if}
 
     <!--
         main must be a flex child that can shrink: min-height:0 prevents it
