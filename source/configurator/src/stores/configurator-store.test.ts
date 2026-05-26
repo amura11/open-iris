@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ConfiguratorStore, stepToWireAction } from './configurator-store.svelte.ts';
-import type { State, SequenceStep } from '@model/configurator-types.ts';
+import { ConfiguratorStore } from './configurator-store.svelte.ts';
+import type { State, SequenceStep, PhysicalButton, ScreenButton } from '@model/configurator-types.ts';
 import type { DeviceTemplate } from '@model/device-catalog-types.ts';
+import { ButtonCode } from '@model/button-codes.ts';
 import {
-    SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE, IRIS_NO_ID,
+    SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE,
 } from '@model/serialization.ts';
 
 function makeStateDraft(name: string, overrides: Partial<State> = {}): State {
@@ -35,41 +36,6 @@ function makeDeviceTemplate(name: string, manufacturer: string): DeviceTemplate 
         }],
     };
 }
-
-// ── stepToWireAction ──────────────────────────────────────────────────────────
-
-describe('stepToWireAction', () => {
-    it('converts a device step', () => {
-        const device = {
-            id: 1, name: 'TV', type: 'ir' as const, powerMode: 'none' as const, manufacturer: 'Sony', functions: [],
-        };
-        const deviceFunction = {
-            id: 10, deviceId: 1, name: 'Power', data: { type: 'ir' as const, protocol: 'nec' as const, code: 0n },
-        };
-
-        const action = stepToWireAction({ kind: 'device', device, deviceFunction });
-
-        expect(action).toEqual({ deviceId: 1, functionId: 10, data: IRIS_NO_ID });
-    });
-
-    it('converts a navigate step', () => {
-        const action = stepToWireAction({ kind: 'navigate', targetStateId: 5 });
-
-        expect(action).toEqual({ deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_NAVIGATE, data: 5 });
-    });
-
-    it('converts a pause step', () => {
-        const action = stepToWireAction({ kind: 'pause', durationMs: 300 });
-
-        expect(action).toEqual({ deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_PAUSE, data: 300 });
-    });
-
-    it('converts a power_off_active step', () => {
-        const action = stepToWireAction({ kind: 'power_off_active' });
-
-        expect(action).toEqual({ deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_POWER_OFF_ACTIVE, data: IRIS_NO_ID });
-    });
-});
 
 // ── ConfiguratorStore — state management ─────────────────────────────────────
 
@@ -234,6 +200,205 @@ describe('ConfiguratorStore — device management', () => {
 
         expect(store.devices[0].name).toBe('Bedroom TV');
         expect(store.devices[0].manufacturer).toBe('Sony');
+    });
+});
+
+// ── ConfiguratorStore — physical button assignment ───────────────────────────
+
+describe('ConfiguratorStore — physical button assignment', () => {
+    let store: ConfiguratorStore;
+    const navigateStep: SequenceStep = { kind: 'navigate', targetStateId: 0 };
+
+    beforeEach(() => {
+        store = new ConfiguratorStore();
+    });
+
+    it('assignPhysicalButtonAction sets an action assignment on an unassigned button', () => {
+        store.assignPhysicalButtonAction(ButtonCode.VOL_UP, navigateStep);
+
+        const assignment = store.selectedState.physicalButtons.find(b => b.buttonCode === ButtonCode.VOL_UP)?.assignment;
+        expect(assignment?.kind).toBe('action');
+        expect(assignment).toMatchObject({ kind: 'action', deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_NAVIGATE, data: 0 });
+    });
+
+    it('assignPhysicalButtonAction replaces an existing action assignment', () => {
+        store.assignPhysicalButtonAction(ButtonCode.VOL_UP, navigateStep);
+        store.assignPhysicalButtonAction(ButtonCode.VOL_UP, { kind: 'pause', durationMs: 500 });
+
+        const assignment = store.selectedState.physicalButtons.find(b => b.buttonCode === ButtonCode.VOL_UP)?.assignment;
+        expect(assignment).toMatchObject({ kind: 'action', functionId: SYSTEM_FN_PAUSE, data: 500 });
+    });
+
+    it('assignPhysicalButtonAction deletes a previous anonymous sequence', () => {
+        const sequenceId = store.addSequence([navigateStep]);
+        store.updateState({
+            ...store.selectedState,
+            physicalButtons: [{ buttonCode: ButtonCode.MUTE, assignment: { kind: 'sequence', sequenceId } }],
+        });
+
+        store.assignPhysicalButtonAction(ButtonCode.MUTE, { kind: 'pause', durationMs: 100 });
+
+        expect(store.sequences.find(s => s.id === sequenceId)).toBeUndefined();
+    });
+
+    it('assignPhysicalButtonAction preserves a previous named sequence', () => {
+        const sequenceId = store.addSequence([navigateStep], 'Named');
+        store.updateState({
+            ...store.selectedState,
+            physicalButtons: [{ buttonCode: ButtonCode.MUTE, assignment: { kind: 'sequence', sequenceId } }],
+        });
+
+        store.assignPhysicalButtonAction(ButtonCode.MUTE, { kind: 'pause', durationMs: 100 });
+
+        expect(store.sequences.find(s => s.id === sequenceId)).toBeDefined();
+    });
+
+    it('assignPhysicalButtonAnonymousSequence creates a new sequence and assigns it', () => {
+        const steps: SequenceStep[] = [navigateStep, { kind: 'pause', durationMs: 200 }];
+        store.assignPhysicalButtonAnonymousSequence(ButtonCode.VOL_UP, steps, undefined, 300);
+
+        expect(store.sequences).toHaveLength(1);
+        const assignment = store.selectedState.physicalButtons.find(b => b.buttonCode === ButtonCode.VOL_UP)?.assignment;
+        expect(assignment?.kind).toBe('sequence');
+    });
+
+    it('assignPhysicalButtonAnonymousSequence reuses the existing sequence when replacing', () => {
+        store.assignPhysicalButtonAnonymousSequence(ButtonCode.VOL_UP, [navigateStep], undefined, 200);
+        const firstSequenceId = (store.selectedState.physicalButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        store.assignPhysicalButtonAnonymousSequence(ButtonCode.VOL_UP, [{ kind: 'pause', durationMs: 100 }], undefined, 200);
+        const secondSequenceId = (store.selectedState.physicalButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        expect(secondSequenceId).toBe(firstSequenceId);
+        expect(store.sequences).toHaveLength(1);
+    });
+
+    it('assignPhysicalButtonAnonymousSequence does nothing when steps is empty', () => {
+        store.assignPhysicalButtonAnonymousSequence(ButtonCode.VOL_UP, [], undefined, 200);
+
+        expect(store.sequences).toHaveLength(0);
+        expect(store.selectedState.physicalButtons).toHaveLength(0);
+    });
+
+    it('assignPhysicalButtonNamedSequence assigns the sequence reference', () => {
+        const sequenceId = store.addSequence([navigateStep], 'My Macro');
+        store.assignPhysicalButtonNamedSequence(ButtonCode.HOME, sequenceId);
+
+        const assignment = store.selectedState.physicalButtons.find(b => b.buttonCode === ButtonCode.HOME)?.assignment;
+        expect(assignment).toEqual({ kind: 'sequence', sequenceId });
+    });
+
+    it('assignPhysicalButtonNamedSequence deletes a different previous anonymous sequence', () => {
+        const oldId = store.addSequence([navigateStep]);
+        store.updateState({
+            ...store.selectedState,
+            physicalButtons: [{ buttonCode: ButtonCode.HOME, assignment: { kind: 'sequence', sequenceId: oldId } }],
+        });
+        const newId = store.addSequence([{ kind: 'pause', durationMs: 100 }], 'New Named');
+
+        store.assignPhysicalButtonNamedSequence(ButtonCode.HOME, newId);
+
+        expect(store.sequences.find(s => s.id === oldId)).toBeUndefined();
+    });
+
+    it('removePhysicalButtonAssignment removes the button entry', () => {
+        store.assignPhysicalButtonAction(ButtonCode.POWER, navigateStep);
+        store.removePhysicalButtonAssignment(ButtonCode.POWER);
+
+        expect(store.selectedState.physicalButtons.find(b => b.buttonCode === ButtonCode.POWER)).toBeUndefined();
+    });
+
+    it('removePhysicalButtonAssignment deletes an anonymous sequence', () => {
+        store.assignPhysicalButtonAnonymousSequence(ButtonCode.BACK, [navigateStep], undefined, 200);
+        const sequenceId = (store.selectedState.physicalButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        store.removePhysicalButtonAssignment(ButtonCode.BACK);
+
+        expect(store.sequences.find(s => s.id === sequenceId)).toBeUndefined();
+    });
+});
+
+// ── ConfiguratorStore — screen button assignment ──────────────────────────────
+
+describe('ConfiguratorStore — screen button assignment', () => {
+    let store: ConfiguratorStore;
+    const pauseStep: SequenceStep = { kind: 'pause', durationMs: 500 };
+
+    function addScreenButton(storeInstance: ConfiguratorStore): ScreenButton {
+        const button: ScreenButton = { id: 1, label: 'Test', assignment: null };
+        storeInstance.updateState({ ...storeInstance.selectedState, screenButtons: [button] });
+        return button;
+    }
+
+    beforeEach(() => {
+        store = new ConfiguratorStore();
+    });
+
+    it('assignScreenButtonAction sets an action assignment', () => {
+        const button = addScreenButton(store);
+        store.assignScreenButtonAction(button.id, pauseStep);
+
+        const assignment = store.selectedState.screenButtons[0].assignment;
+        expect(assignment).toMatchObject({ kind: 'action', functionId: SYSTEM_FN_PAUSE, data: 500 });
+    });
+
+    it('assignScreenButtonAction deletes a previous anonymous sequence', () => {
+        const button = addScreenButton(store);
+        const sequenceId = store.addSequence([pauseStep]);
+        store.updateState({
+            ...store.selectedState,
+            screenButtons: [{ ...button, assignment: { kind: 'sequence', sequenceId } }],
+        });
+
+        store.assignScreenButtonAction(button.id, { kind: 'navigate', targetStateId: 0 });
+
+        expect(store.sequences.find(s => s.id === sequenceId)).toBeUndefined();
+    });
+
+    it('assignScreenButtonAnonymousSequence creates a sequence and assigns it', () => {
+        const button = addScreenButton(store);
+        store.assignScreenButtonAnonymousSequence(button.id, [pauseStep], undefined, 200);
+
+        expect(store.sequences).toHaveLength(1);
+        expect(store.selectedState.screenButtons[0].assignment?.kind).toBe('sequence');
+    });
+
+    it('assignScreenButtonAnonymousSequence reuses the existing sequence when replacing', () => {
+        const button = addScreenButton(store);
+        store.assignScreenButtonAnonymousSequence(button.id, [pauseStep], undefined, 200);
+        const firstId = (store.selectedState.screenButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        store.assignScreenButtonAnonymousSequence(button.id, [{ kind: 'navigate', targetStateId: 0 }], undefined, 200);
+        const secondId = (store.selectedState.screenButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        expect(secondId).toBe(firstId);
+        expect(store.sequences).toHaveLength(1);
+    });
+
+    it('assignScreenButtonNamedSequence assigns the sequence reference', () => {
+        const button = addScreenButton(store);
+        const sequenceId = store.addSequence([pauseStep], 'My Macro');
+        store.assignScreenButtonNamedSequence(button.id, sequenceId);
+
+        expect(store.selectedState.screenButtons[0].assignment).toEqual({ kind: 'sequence', sequenceId });
+    });
+
+    it('removeScreenButtonAssignment sets assignment to null', () => {
+        const button = addScreenButton(store);
+        store.assignScreenButtonAction(button.id, pauseStep);
+        store.removeScreenButtonAssignment(button.id);
+
+        expect(store.selectedState.screenButtons[0].assignment).toBeNull();
+    });
+
+    it('removeScreenButtonAssignment deletes an anonymous sequence', () => {
+        const button = addScreenButton(store);
+        store.assignScreenButtonAnonymousSequence(button.id, [pauseStep], undefined, 200);
+        const sequenceId = (store.selectedState.screenButtons[0].assignment as { kind: 'sequence'; sequenceId: number }).sequenceId;
+
+        store.removeScreenButtonAssignment(button.id);
+
+        expect(store.sequences.find(s => s.id === sequenceId)).toBeUndefined();
     });
 });
 

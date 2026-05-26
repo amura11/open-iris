@@ -1,7 +1,6 @@
 <script lang="ts">
     import type { State, ScreenButton } from '@model/configurator-types.ts';
     import { configuratorStore } from '@stores/configurator-store.svelte.ts';
-    import { removeScreenButtonAssignment } from '@utils/assignment-utils.ts';
     import ScreenButtonRow from './ScreenButtonRow.svelte';
 
     interface Props {
@@ -38,7 +37,7 @@
             <ScreenButtonRow
                 button={btn}
                 onSelect={() => onSelect(btn)}
-                onClear={() => removeScreenButtonAssignment(btn)}
+                onClear={() => configuratorStore.removeScreenButtonAssignment(btn.id)}
                 onDelete={() => removeButton(btn)}
             />
         {/each}

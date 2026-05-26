@@ -2,11 +2,6 @@
     import type { ButtonDescriptor } from '@layout/layout-types.ts';
     import type { SequenceStep } from '@model/configurator-types.ts';
     import { configuratorStore } from '@stores/configurator-store.svelte.ts';
-    import {
-        assignPhysicalButtonSingleAction,
-        assignPhysicalButtonSequence,
-        assignPhysicalButtonNamedSequence,
-    } from '@utils/assignment-utils.ts';
     import ButtonActionPanel from './ButtonActionPanel.svelte';
 
     interface Props {
@@ -22,15 +17,15 @@
     let currentAssignment = $derived(buttonConfig?.assignment ?? null);
 
     function assignSingleAction(selection: SequenceStep) {
-        assignPhysicalButtonSingleAction(button, selection);
+        configuratorStore.assignPhysicalButtonAction(button.buttonCode, selection);
     }
 
     function assignMultiActionSequence(steps: SequenceStep[], name: string | undefined, delayMs: number) {
-        assignPhysicalButtonSequence(button, steps, name, delayMs);
+        configuratorStore.assignPhysicalButtonAnonymousSequence(button.buttonCode, steps, name, delayMs);
     }
 
     function assignNamedSequence(sequenceId: number) {
-        assignPhysicalButtonNamedSequence(button, sequenceId);
+        configuratorStore.assignPhysicalButtonNamedSequence(button.buttonCode, sequenceId);
     }
 </script>
 

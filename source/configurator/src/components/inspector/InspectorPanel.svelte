@@ -3,7 +3,6 @@
     import type { ScreenButton } from '@model/configurator-types.ts';
     import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import { uiStore } from '@stores/ui-store.svelte.ts';
-    import { removePhysicalButtonAssignment } from '@utils/assignment-utils.ts';
     import ScreenInspector from './ScreenInspector.svelte';
     import PhysicalButtonInspector from './PhysicalButtonInspector.svelte';
 
@@ -50,7 +49,7 @@
 
     function handleClear() {
         if (activeButton) {
-            removePhysicalButtonAssignment(activeButton);
+            configuratorStore.removePhysicalButtonAssignment(activeButton.buttonCode);
         }
     }
 

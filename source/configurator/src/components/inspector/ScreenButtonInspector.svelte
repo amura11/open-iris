@@ -1,11 +1,6 @@
 <script lang="ts">
     import type { ScreenButton, SequenceStep } from '@model/configurator-types.ts';
     import { configuratorStore } from '@stores/configurator-store.svelte.ts';
-    import {
-        assignScreenButtonSingleAction,
-        assignScreenButtonSequence,
-        assignScreenButtonNamedSequence,
-    } from '@utils/assignment-utils.ts';
     import ButtonActionPanel from './ButtonActionPanel.svelte';
 
     interface Props {
@@ -44,15 +39,15 @@
     }
 
     function assignSingleAction(step: SequenceStep) {
-        assignScreenButtonSingleAction(button, step);
+        configuratorStore.assignScreenButtonAction(button.id, step);
     }
 
     function assignSequence(steps: SequenceStep[], name: string | undefined, delayMs: number) {
-        assignScreenButtonSequence(button, { steps, name, delayMs });
+        configuratorStore.assignScreenButtonAnonymousSequence(button.id, steps, name, delayMs);
     }
 
     function assignNamedSequence(sequenceId: number) {
-        assignScreenButtonNamedSequence(button, sequenceId);
+        configuratorStore.assignScreenButtonNamedSequence(button.id, sequenceId);
     }
 </script>
 

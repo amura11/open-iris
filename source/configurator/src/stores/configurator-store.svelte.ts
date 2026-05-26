@@ -1,15 +1,14 @@
-import type { State, Device, Sequence, SequenceStep, StateId, SequenceId, DeviceId } from '@model/configurator-types.ts';
-import type { WireConfig, WireIdCounters, WireState, WireDevice, WireDeviceFunction, WireSequence, WireDeviceMetadata, WireFunctionMetadata, WireSequenceMetadata, WireJsonObject } from '@model/wire-types.ts';
+import type { State, Device, Sequence, SequenceStep, StateId, SequenceId, DeviceId, ScreenButtonId } from '@model/configurator-types.ts';
+import { ButtonCode } from '@model/button-codes.ts';
+import type { WireConfig, WireIdCounters } from '@model/wire-types.ts';
 import type { RemoteLayout } from '@layout/layout-types.ts';
 import type { DeviceTemplate } from '@model/device-catalog-types.ts';
 import { loadLayout as loadLayoutFile } from '@layout/layout-loader.ts';
 import { loadAppConfig } from '../app-config.ts';
-import {
-    SYSTEM_DEVICE_ID, SYSTEM_FN_NAVIGATE, SYSTEM_FN_PAUSE, SYSTEM_FN_POWER_OFF_ACTIVE, IRIS_NO_ID,
-} from '@model/serialization.ts';
 import { DeviceService } from '@services/device-service.ts';
 import { ImportExportService } from '@services/import-export-service.ts';
 import { FakeCatalogProvider } from '@catalog/fake-catalog-provider.ts';
+import { stepToAssignment, withPhysicalButton, buildWireConfig, parseWireConfig } from '@utils/wire-config-utils.ts';
 
 const DEFAULT_ROOT_STATE: State = {
     id:              0,
@@ -24,48 +23,6 @@ const DEFAULT_ROOT_STATE: State = {
 };
 
 const DEFAULT_ID_COUNTERS: WireIdCounters = { device: 0, function: 0, sequence: 0, state: 1, dataBlock: 0 };
-
-// ── Wire → UI conversion helpers ──────────────────────────────────────────────
-
-function wireActionToStep(
-    action: WireConfig['sequences'][number]['actions'][number],
-    devices: Device[],
-): SequenceStep[] {
-    if (action.deviceId === SYSTEM_DEVICE_ID) {
-        if (action.functionId === SYSTEM_FN_NAVIGATE) {
-            return [{ kind: 'navigate', targetStateId: action.data }];
-        }
-
-        if (action.functionId === SYSTEM_FN_PAUSE) {
-            return [{ kind: 'pause', durationMs: action.data }];
-        }
-
-        return [{ kind: 'power_off_active' }];
-    }
-
-    const device = devices.find(d => d.id === action.deviceId);
-    const deviceFunction = device?.functions.find(f => f.id === action.functionId);
-
-    return device && deviceFunction ? [{ kind: 'device', device, deviceFunction }] : [];
-}
-
-// ── UI → Wire conversion helpers ──────────────────────────────────────────────
-
-export function stepToWireAction(step: SequenceStep): WireConfig['sequences'][number]['actions'][number] {
-    if (step.kind === 'device') {
-        return { deviceId: step.device.id, functionId: step.deviceFunction.id, data: IRIS_NO_ID };
-    }
-
-    if (step.kind === 'navigate') {
-        return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_NAVIGATE, data: step.targetStateId };
-    }
-
-    if (step.kind === 'pause') {
-        return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_PAUSE, data: step.durationMs };
-    }
-
-    return { deviceId: SYSTEM_DEVICE_ID, functionId: SYSTEM_FN_POWER_OFF_ACTIVE, data: IRIS_NO_ID };
-}
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
@@ -190,153 +147,118 @@ export class ConfiguratorStore {
         this.devices = this.devices.map(d => d.id === deviceId ? { ...d, name: newName } : d);
     }
 
+    // ── Physical button assignment ─────────────────────────────────────────────
+
+    assignPhysicalButtonAction(buttonCode: ButtonCode, step: SequenceStep): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.physicalButtons.find(b => b.buttonCode === buttonCode)?.assignment ?? null;
+        this.updateState({ ...activeState, physicalButtons: withPhysicalButton(activeState.physicalButtons, buttonCode, stepToAssignment(step)) });
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
+    assignPhysicalButtonAnonymousSequence(buttonCode: ButtonCode, steps: SequenceStep[], name: string | undefined, delayMs: number): void {
+        if (steps.length === 0) {
+            return;
+        }
+
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.physicalButtons.find(b => b.buttonCode === buttonCode)?.assignment ?? null;
+        let sequenceId: number;
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.updateSequence(previousAssignment.sequenceId, steps, name, delayMs);
+            sequenceId = previousAssignment.sequenceId;
+        } else {
+            sequenceId = this.addSequence(steps, name, delayMs);
+        }
+
+        this.updateState({ ...activeState, physicalButtons: withPhysicalButton(activeState.physicalButtons, buttonCode, { kind: 'sequence', sequenceId }) });
+    }
+
+    assignPhysicalButtonNamedSequence(buttonCode: ButtonCode, sequenceId: SequenceId): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.physicalButtons.find(b => b.buttonCode === buttonCode)?.assignment ?? null;
+        this.updateState({ ...activeState, physicalButtons: withPhysicalButton(activeState.physicalButtons, buttonCode, { kind: 'sequence', sequenceId }) });
+
+        if (previousAssignment?.kind === 'sequence' && previousAssignment.sequenceId !== sequenceId) {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
+    removePhysicalButtonAssignment(buttonCode: ButtonCode): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.physicalButtons.find(b => b.buttonCode === buttonCode)?.assignment ?? null;
+        this.updateState({ ...activeState, physicalButtons: activeState.physicalButtons.filter(b => b.buttonCode !== buttonCode) });
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
+    // ── Screen button assignment ───────────────────────────────────────────────
+
+    assignScreenButtonAction(screenButtonId: ScreenButtonId, step: SequenceStep): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.screenButtons.find(b => b.id === screenButtonId)?.assignment ?? null;
+        this.updateState({ ...activeState, screenButtons: activeState.screenButtons.map(b => b.id === screenButtonId ? { ...b, assignment: stepToAssignment(step) } : b) });
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
+    assignScreenButtonAnonymousSequence(screenButtonId: ScreenButtonId, steps: SequenceStep[], name: string | undefined, delayMs: number): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.screenButtons.find(b => b.id === screenButtonId)?.assignment ?? null;
+        let sequenceId: number;
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.updateSequence(previousAssignment.sequenceId, steps, name, delayMs);
+            sequenceId = previousAssignment.sequenceId;
+        } else {
+            sequenceId = this.addSequence(steps, name, delayMs);
+        }
+
+        this.updateState({ ...activeState, screenButtons: activeState.screenButtons.map(b => b.id === screenButtonId ? { ...b, assignment: { kind: 'sequence' as const, sequenceId } } : b) });
+    }
+
+    assignScreenButtonNamedSequence(screenButtonId: ScreenButtonId, sequenceId: SequenceId): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.screenButtons.find(b => b.id === screenButtonId)?.assignment ?? null;
+        this.updateState({ ...activeState, screenButtons: activeState.screenButtons.map(b => b.id === screenButtonId ? { ...b, assignment: { kind: 'sequence' as const, sequenceId } } : b) });
+
+        if (previousAssignment?.kind === 'sequence' && previousAssignment.sequenceId !== sequenceId) {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
+    removeScreenButtonAssignment(screenButtonId: ScreenButtonId): void {
+        const activeState = this.selectedState;
+        const previousAssignment = activeState.screenButtons.find(b => b.id === screenButtonId)?.assignment ?? null;
+        this.updateState({ ...activeState, screenButtons: activeState.screenButtons.map(b => b.id === screenButtonId ? { ...b, assignment: null } : b) });
+
+        if (previousAssignment?.kind === 'sequence') {
+            this.deleteAnonymousSequence(previousAssignment.sequenceId);
+        }
+    }
+
     // ── Wire format translation ────────────────────────────────────────────────
 
     toWireConfig(): WireConfig {
-        const wireDevices: WireDevice[] = this.devices.map(device => ({
-            id:                  device.id,
-            name:                device.name,
-            type:                device.type,
-            powerMode:           device.powerMode,
-            powerOnFunctionId:   device.powerOnFunctionId,
-            powerOffFunctionId:  device.powerOffFunctionId,
-        }));
-
-        const wireFunctions: WireDeviceFunction[] = this.devices.flatMap(device =>
-            device.functions.map(deviceFunction => ({
-                id:       deviceFunction.id,
-                deviceId: deviceFunction.deviceId,
-                name:     deviceFunction.name,
-                data:     deviceFunction.data,
-            }))
-        );
-
-        const wireDeviceMetadata: WireDeviceMetadata[] = this.devices.map(device => ({
-            id:           device.id,
-            manufacturer: device.manufacturer,
-            sourceId:     device.sourceId,
-        }));
-
-        const wireFunctionMetadata: WireFunctionMetadata[] = this.devices.flatMap(device =>
-            device.functions.map(deviceFunction => ({
-                id:       deviceFunction.id,
-                sourceId: deviceFunction.sourceId,
-            }))
-        );
-
-        const wireSequences: WireSequence[] = this.sequences.map(sequence => ({
-            id:      sequence.id,
-            actions: sequence.steps.map(stepToWireAction),
-        }));
-
-        const wireSequenceMetadata: WireSequenceMetadata[] = this.sequences
-            .filter(sequence => sequence.name !== undefined || sequence.delayMs !== 200)
-            .map(sequence => ({
-                sequenceId: sequence.id,
-                ...(sequence.name !== undefined ? { name: sequence.name } : {}),
-                ...(sequence.delayMs !== 200    ? { delayMs: sequence.delayMs } : {}),
-            }));
-
-        const wireStates: WireState[] = this.states.map(state => ({
-            id:              state.id,
-            name:            state.name,
-            stateType:       state.stateType,
-            buttonFallback:  state.buttonFallback,
-            activeDevices:   state.activeDevices,
-            onActivate:      state.onActivate,
-            onDeactivate:    state.onDeactivate,
-            physicalButtons: state.physicalButtons.map(physicalButton => ({
-                buttonCode: physicalButton.buttonCode,
-                assignment: physicalButton.assignment,
-            })),
-            screenButtons: state.screenButtons.map(screenButton => ({
-                id:         screenButton.id,
-                label:      screenButton.label,
-                icon:       screenButton.icon,
-                assignment: screenButton.assignment,
-            })),
-        }));
-
-        return {
-            rootStateId: this.rootStateId,
-            states:      wireStates,
-            sequences:   wireSequences,
-            devices:     wireDevices,
-            functions:   wireFunctions,
-            dataBlocks:  [],
-            metadata: {
-                idCounters:       this.idCounters,
-                deviceMetadata:   wireDeviceMetadata,
-                functionMetadata: wireFunctionMetadata,
-                sequenceMetadata: wireSequenceMetadata,
-                extra:            {} as WireJsonObject,
-            },
-        };
+        return buildWireConfig(this.devices, this.sequences, this.states, this.rootStateId, this.idCounters);
     }
 
     loadFromWireConfig(config: WireConfig): void {
-        this.devices = config.devices.map(wireDevice => {
-            const metadata  = config.metadata.deviceMetadata.find(m => m.id === wireDevice.id);
-            const functions = config.functions
-                .filter(f => f.deviceId === wireDevice.id)
-                .map(wireFunction => {
-                    const functionMetadata = config.metadata.functionMetadata.find(m => m.id === wireFunction.id);
-                    return {
-                        id:       wireFunction.id,
-                        deviceId: wireFunction.deviceId,
-                        name:     wireFunction.name,
-                        data:     wireFunction.data,
-                        sourceId: functionMetadata?.sourceId,
-                    };
-                });
-
-            return {
-                id:                  wireDevice.id,
-                name:                wireDevice.name,
-                type:                wireDevice.type,
-                powerMode:           wireDevice.powerMode,
-                powerOnFunctionId:   wireDevice.powerOnFunctionId,
-                powerOffFunctionId:  wireDevice.powerOffFunctionId,
-                manufacturer:        metadata?.manufacturer ?? '',
-                sourceId:            metadata?.sourceId,
-                functions,
-            };
-        });
-
-        this.sequences = config.sequences.map(wireSequence => {
-            const metadata = config.metadata.sequenceMetadata.find(m => m.sequenceId === wireSequence.id);
-            const steps    = wireSequence.actions.flatMap(action => wireActionToStep(action, this.devices));
-            return {
-                id:      wireSequence.id,
-                name:    metadata?.name,
-                delayMs: metadata?.delayMs ?? 200,
-                steps,
-            };
-        });
-
-        this.states = config.states.map(wireState => ({
-            id:              wireState.id,
-            name:            wireState.name,
-            stateType:       wireState.stateType,
-            buttonFallback:  wireState.buttonFallback,
-            activeDevices:   wireState.activeDevices,
-            onActivate:      wireState.onActivate,
-            onDeactivate:    wireState.onDeactivate,
-            physicalButtons: wireState.physicalButtons.map(physicalButton => ({
-                buttonCode: physicalButton.buttonCode,
-                assignment: physicalButton.assignment,
-            })),
-            screenButtons: wireState.screenButtons.map(screenButton => ({
-                id:         screenButton.id,
-                label:      screenButton.label,
-                icon:       screenButton.icon,
-                assignment: screenButton.assignment,
-            })),
-        }));
-
-        this.rootStateId     = config.rootStateId;
-        this.idCounters      = config.metadata.idCounters;
-        this.selectedStateId = config.rootStateId;
+        const parsed = parseWireConfig(config);
+        this.devices         = parsed.devices;
+        this.sequences       = parsed.sequences;
+        this.states          = parsed.states;
+        this.rootStateId     = parsed.rootStateId;
+        this.selectedStateId = parsed.rootStateId;
+        this.idCounters      = parsed.idCounters;
     }
 }
 
