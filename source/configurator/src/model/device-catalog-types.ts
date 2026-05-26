@@ -1,21 +1,23 @@
 import type { DeviceType, FunctionData } from './configurator-types.ts';
 
-export interface CatalogDeviceFunction {
+export interface DeviceTemplateFunction {
     name:      string;
     data:      FunctionData;
     sourceId?: string;
 }
 
-export interface CatalogDevice {
-    uuid:         string;
-    sourceId:     string;
-    name:         string;
-    manufacturer: string;
-    type:         DeviceType;
-    functions:    CatalogDeviceFunction[];
+export interface DeviceTemplate {
+    identifier:              string;
+    name:                    string;
+    manufacturer:            string;
+    type:                    DeviceType;
+    providerName:            string;
+    allowsMultipleInstances: boolean;
+    functions:               DeviceTemplateFunction[];
 }
 
 export interface DeviceProvider {
+    name:      string;
     isEnabled: boolean;
-    search(query: string): Promise<CatalogDevice[]>;
+    search(query: string): Promise<DeviceTemplate[]>;
 }

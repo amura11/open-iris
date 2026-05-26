@@ -1,14 +1,14 @@
 <script lang="ts">
     import { SearchIcon, CheckIcon, ListVideoIcon, XIcon } from '@lucide/svelte';
-    import type { ActionPickerSelection } from '@model/configurator-types.ts';
+    import type { ActionPickerSelection, Device, DeviceFunction } from '@model/configurator-types.ts';
     import { configuratorStore } from '@stores/configurator-store.svelte.ts';
     import NavigateActionEditor from './NavigateActionEditor.svelte';
     import PauseActionEditor from './PauseActionEditor.svelte';
 
     interface DeviceItem {
         kind: 'device';
-        device: import('@model/configurator-types.ts').Device;
-        deviceFunction: import('@model/configurator-types.ts').DeviceFunction;
+        device: Device;
+        deviceFunction: DeviceFunction;
     }
 
     interface SystemItem {

@@ -1,5 +1,5 @@
 import type { DeviceType, IRProtocol } from '@model/configurator-types.ts';
-import type { CatalogDevice, CatalogDeviceFunction, DeviceProvider } from '@model/device-catalog-types.ts';
+import type { DeviceTemplate, DeviceTemplateFunction, DeviceProvider } from '@model/device-catalog-types.ts';
 
 interface RawIRTemplate {
     type: 'ir_send';
@@ -17,7 +17,7 @@ interface RawRESTTemplate {
 type RawTemplate = RawIRTemplate | RawRESTTemplate;
 
 interface RawDeviceFunction {
-    name: string;
+    name:     string;
     template: RawTemplate;
 }
 
@@ -30,7 +30,7 @@ interface RawDevice {
     functions:    RawDeviceFunction[];
 }
 
-function parseDeviceFunction(rawFunction: RawDeviceFunction): CatalogDeviceFunction {
+function parseDeviceFunction(rawFunction: RawDeviceFunction): DeviceTemplateFunction {
     const template = rawFunction.template;
 
     if (template.type === 'ir_send') {
@@ -48,23 +48,25 @@ function parseDeviceFunction(rawFunction: RawDeviceFunction): CatalogDeviceFunct
     };
 }
 
-function parseDevice(rawDevice: RawDevice): CatalogDevice {
+function parseDevice(rawDevice: RawDevice, providerName: string): DeviceTemplate {
     return {
-        uuid:         rawDevice.uuid,
-        sourceId:     rawDevice.id,
-        name:         rawDevice.name,
-        manufacturer: rawDevice.manufacturer,
-        type:         rawDevice.type,
-        functions:    rawDevice.functions.map(parseDeviceFunction),
+        identifier:              rawDevice.uuid,
+        name:                    rawDevice.name,
+        manufacturer:            rawDevice.manufacturer,
+        type:                    rawDevice.type,
+        providerName,
+        allowsMultipleInstances: rawDevice.type !== 'ir',
+        functions:               rawDevice.functions.map(parseDeviceFunction),
     };
 }
 
 export class FakeCatalogProvider implements DeviceProvider {
+    name      = 'OpenIRis Catalog';
     isEnabled = true;
 
-    async search(query: string): Promise<CatalogDevice[]> {
+    async search(query: string): Promise<DeviceTemplate[]> {
         const { default: rawDevices } = await import('./devices.json');
-        const parsedDevices = (rawDevices as RawDevice[]).map(parseDevice);
+        const parsedDevices = (rawDevices as RawDevice[]).map(rawDevice => parseDevice(rawDevice, this.name));
         const normalizedQuery = query.trim().toLowerCase();
 
         if (!normalizedQuery) {

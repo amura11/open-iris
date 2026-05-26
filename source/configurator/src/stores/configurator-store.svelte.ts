@@ -1,7 +1,7 @@
 import type { State, Device, Sequence, SequenceStep, StateId, SequenceId, DeviceId } from '@model/configurator-types.ts';
 import type { WireConfig, WireIdCounters, WireState, WireDevice, WireDeviceFunction, WireSequence, WireDeviceMetadata, WireFunctionMetadata, WireSequenceMetadata, WireJsonObject } from '@model/wire-types.ts';
 import type { RemoteLayout } from '@layout/layout-types.ts';
-import type { CatalogDevice } from '@model/device-catalog-types.ts';
+import type { DeviceTemplate } from '@model/device-catalog-types.ts';
 import { loadLayout as loadLayoutFile } from '@layout/layout-loader.ts';
 import { loadAppConfig } from '../app-config.ts';
 import {
@@ -157,33 +157,37 @@ class ConfiguratorStore {
 
     // ── Device CRUD ────────────────────────────────────────────────────────────
 
-    addDevice(catalogDevice: CatalogDevice): void {
-        if (this.devices.some(d => d.sourceId === catalogDevice.sourceId)) {
+    addDevice(template: DeviceTemplate, displayName?: string): void {
+        if (!template.allowsMultipleInstances && this.devices.some(d => d.sourceId === template.identifier)) {
             return;
         }
 
         const deviceId = this.allocateId('device');
-        const functions = catalogDevice.functions.map(catalogFunction => ({
+        const functions = template.functions.map(templateFunction => ({
             id:       this.allocateId('function'),
             deviceId,
-            name:     catalogFunction.name,
-            data:     catalogFunction.data,
-            sourceId: catalogFunction.sourceId,
+            name:     templateFunction.name,
+            data:     templateFunction.data,
+            sourceId: templateFunction.sourceId,
         }));
 
         this.devices = [...this.devices, {
             id:           deviceId,
-            name:         catalogDevice.name,
-            type:         catalogDevice.type,
+            name:         displayName ?? template.name,
+            type:         template.type,
             powerMode:    'none' as const,
-            manufacturer: catalogDevice.manufacturer,
-            sourceId:     catalogDevice.sourceId,
+            manufacturer: template.manufacturer,
+            sourceId:     template.identifier,
             functions,
         }];
     }
 
     removeDevice(deviceId: DeviceId): void {
         this.devices = this.devices.filter(d => d.id !== deviceId);
+    }
+
+    renameDevice(deviceId: DeviceId, newName: string): void {
+        this.devices = this.devices.map(d => d.id === deviceId ? { ...d, name: newName } : d);
     }
 
     // ── Wire format translation ────────────────────────────────────────────────

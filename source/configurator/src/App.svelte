@@ -205,12 +205,7 @@
         {/if}
     </main>
 
-    <DeviceDiscoveryDialog
-        bind:open={uiStore.deviceDialogOpen}
-        installedDevices={configuratorStore.devices}
-        onAdd={(device) => configuratorStore.addDevice(device)}
-        onRemove={(deviceId) => configuratorStore.removeDevice(deviceId)}
-    />
+    <DeviceDiscoveryDialog bind:open={uiStore.deviceDialogOpen} />
 
     <StateEditDialog
         open={uiStore.stateEditDialog.open}

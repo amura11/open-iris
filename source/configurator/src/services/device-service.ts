@@ -1,4 +1,4 @@
-import type { CatalogDevice, DeviceProvider } from '@model/device-catalog-types.ts';
+import type { DeviceTemplate, DeviceProvider } from '@model/device-catalog-types.ts';
 
 export class DeviceService {
     private registeredProviders: DeviceProvider[];
@@ -11,7 +11,7 @@ export class DeviceService {
         this.registeredProviders.push(provider);
     }
 
-    async search(query: string): Promise<CatalogDevice[]> {
+    async search(query: string): Promise<DeviceTemplate[]> {
         const enabledProviders = this.registeredProviders.filter(provider => provider.isEnabled);
         const resultSets = await Promise.all(enabledProviders.map(provider => provider.search(query)));
         const combinedResults = resultSets.flat();
