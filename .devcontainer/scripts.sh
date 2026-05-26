@@ -5,7 +5,7 @@
 # Usage:  <resource>:<action> [extra args forwarded to the underlying tool]
 #
 #   web:install      web:run      web:build    web:preview
-#   web:check        web:format
+#   web:check        web:format   web:test
 #
 #   firmware:build   firmware:clean   firmware:flash   firmware:monitor
 #   firmware:flash-monitor           firmware:menuconfig
@@ -26,6 +26,7 @@ _web_build()         { (cd "$OPENIRIS_WEB_DIR" && npm run build "$@"); }
 _web_preview()       { (cd "$OPENIRIS_WEB_DIR" && npm run preview "$@"); }
 _web_check()         { (cd "$OPENIRIS_WEB_DIR" && npm run check "$@"); }
 _web_format()        { (cd "$OPENIRIS_WEB_DIR" && npm run format "$@"); }
+_web_test()          { (cd "$OPENIRIS_WEB_DIR" && npm run test "$@"); }
 
 alias 'web:install'='_web_install'
 alias 'web:run'='_web_run'
@@ -33,6 +34,7 @@ alias 'web:build'='_web_build'
 alias 'web:preview'='_web_preview'
 alias 'web:check'='_web_check'
 alias 'web:format'='_web_format'
+alias 'web:test'='_web_test'
 
 # ── Firmware ─────────────────────────────────────────────────────────────────
 
@@ -148,6 +150,7 @@ OpenIRis dev commands
   web:preview          Serve the production build locally
   web:check            Run svelte-check (TypeScript + Svelte type checking)
   web:format           Run prettier on src/
+  web:test             Run Vitest in watch mode (use -- --run for one-shot)
 
   firmware:pick-port   List available serial devices and set ESPPORT
   firmware:build       Build firmware  (idf.py build)

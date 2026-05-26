@@ -69,7 +69,7 @@ export function stepToWireAction(step: SequenceStep): WireConfig['sequences'][nu
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-class ConfiguratorStore {
+export class ConfiguratorStore {
     devices         = $state<Device[]>([]);
     sequences       = $state<Sequence[]>([]);
     states          = $state<State[]>([DEFAULT_ROOT_STATE]);
