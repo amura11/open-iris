@@ -211,6 +211,7 @@
         open={uiStore.stateEditDialog.open}
         mode={uiStore.stateEditDialog.mode}
         initialState={uiStore.stateEditDialog.initialState}
+        devices={configuratorStore.devices}
         onConfirm={handleStateEditConfirm}
         onCancel={() => uiStore.closeStateEditDialog()}
     />

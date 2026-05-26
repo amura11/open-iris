@@ -98,8 +98,8 @@
                                 checked={saveAsReusable}
                                 onCheckedChange={(details) => { saveAsReusable = details.checked; }}
                             >
-                                <Switch.Control class="switch">
-                                    <Switch.Thumb class="thumb" />
+                                <Switch.Control>
+                                    <Switch.Thumb />
                                 </Switch.Control>
                                 <Switch.Label class="text-sm">Save as reusable</Switch.Label>
                                 <Switch.HiddenInput />
