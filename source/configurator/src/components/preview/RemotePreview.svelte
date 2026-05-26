@@ -386,11 +386,10 @@
         </div>
     </div>
 
-    <div class="hud" aria-hidden="true">
-        <span class="hud-zoom">{zoomPct}%</span>
-        <div class="hud-divider"></div>
-        <button class="hud-btn" onclick={resetView}>Fit</button>
-    </div>
+    <nav class="hud btn-group preset-outlined-surface-200-800 font-mono text-xs" aria-hidden="true">
+        <span class="btn hud-zoom">{zoomPct}%</span>
+        <button class="btn hud-fit" onclick={resetView}>Fit</button>
+    </nav>
 
     <p class="hint" aria-hidden="true">Ctrl+Scroll to zoom · Scroll to pan · Click to focus</p>
 
@@ -445,41 +444,21 @@
         position: absolute;
         bottom: 1rem;
         right: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0;
         background: color-mix(in oklab, light-dark(var(--color-surface-100), var(--color-surface-800)) 80%, transparent);
-        border: 1px solid color-mix(in oklab, var(--color-surface-500) 40%, transparent);
-        border-radius: var(--radius-base);
         backdrop-filter: blur(12px);
-        font-family: monospace;
-        font-size: 0.75rem;
-        color: light-dark(var(--color-surface-600), var(--color-surface-400));
-        overflow: hidden;
     }
 
     .hud-zoom {
-        padding: 0.25rem 0.75rem;
         min-width: 4ch;
         text-align: right;
+        color: light-dark(var(--color-surface-600), var(--color-surface-400));
     }
 
-    .hud-divider {
-        width: 1px;
-        align-self: stretch;
-        background: color-mix(in oklab, var(--color-surface-500) 40%, transparent);
-    }
-
-    .hud-btn {
-        all: unset;
-        padding: 0.25rem 0.75rem;
+    .hud-fit {
         color: light-dark(var(--color-primary-600), var(--color-primary-400));
-        cursor: pointer;
-        font-family: monospace;
-        font-size: 0.75rem;
     }
 
-    .hud-btn:hover { color: light-dark(var(--color-surface-900), var(--color-surface-100)); }
+    .hud-fit:hover { color: light-dark(var(--color-surface-900), var(--color-surface-100)); }
 
     /* ── Hint text (bottom-left) ────────────────────────────────────────── */
 
